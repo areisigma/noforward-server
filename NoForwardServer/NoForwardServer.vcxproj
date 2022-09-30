@@ -148,10 +148,32 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>Packet.lib;wpcap.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="NoForwardServer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Packet32.h" />
+    <ClInclude Include="pcap-bpf.h" />
+    <ClInclude Include="pcap-namedb.h" />
+    <ClInclude Include="pcap.h" />
+    <ClInclude Include="pcap\bluetooth.h" />
+    <ClInclude Include="pcap\bpf.h" />
+    <ClInclude Include="pcap\can_socketcan.h" />
+    <ClInclude Include="pcap\compiler-tests.h" />
+    <ClInclude Include="pcap\dlt.h" />
+    <ClInclude Include="pcap\funcattrs.h" />
+    <ClInclude Include="pcap\ipnet.h" />
+    <ClInclude Include="pcap\namedb.h" />
+    <ClInclude Include="pcap\nflog.h" />
+    <ClInclude Include="pcap\pcap-inttypes.h" />
+    <ClInclude Include="pcap\pcap.h" />
+    <ClInclude Include="pcap\sll.h" />
+    <ClInclude Include="pcap\socket.h" />
+    <ClInclude Include="pcap\usb.h" />
+    <ClInclude Include="pcap\vlan.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

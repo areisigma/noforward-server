@@ -10,6 +10,7 @@
 #include <Windows.h>
 #include <winsock.h>
 #include <tchar.h>
+#include <stdio.h>
 
 #include "pcap.h"
 
@@ -46,6 +47,10 @@ int main()
 		fprintf(stderr, "[!] Couldn't load Npcap\n");
 		system("pause");
 		exit(1);
+	}
+
+	if (pcap_findalldevs()) {
+
 	}
 
 
