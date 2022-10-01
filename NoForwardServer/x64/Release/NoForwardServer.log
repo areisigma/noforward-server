@@ -1,5 +1,7 @@
 ﻿  NoForwardServer.cpp
   Trwa generowanie kodu
-  All 4 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  1 of 5 functions (20.0%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
   Zakończono generowanie kodu
   NoForwardServer.vcxproj -> C:\Users\olaf\Documents\noforward-server\x64\Release\NoForwardServer.exe

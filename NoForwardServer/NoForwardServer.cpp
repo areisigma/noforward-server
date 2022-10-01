@@ -36,12 +36,14 @@
 
 #define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x))
 #define FREE(x) HeapFree(GetProcessHeap(), 0, (x))
+#define ADDR_SIZE 128
 
 #pragma endregion
 
 
 #pragma region proto
 
+int removeNull(char[]);
 int showServices();
 int forgePacket();
 int listenService();
@@ -58,8 +60,11 @@ int main()
 	DWORD dwSize = 0;
 	DWORD dwRetVal = 0;
 
-	char szLocalAddr[128];
-	char szRemoteAddr[128];
+	char szLocalAddr[ADDR_SIZE];
+	char szRemoteAddr[ADDR_SIZE];
+
+	memset(&szLocalAddr, '\0', ADDR_SIZE);
+	memset(&szRemoteAddr, '\0', ADDR_SIZE);
 
 	struct in_addr IpAddr;
 
@@ -88,7 +93,13 @@ int main()
 	if ((dwRetVal = GetTcpTable(pTcpTable, &dwSize, TRUE)) == NO_ERROR) {
 		printf("\tNumber of entries: %d\n", (int)pTcpTable->dwNumEntries);
 		for (i = 0; i < (int)pTcpTable->dwNumEntries; i++) {
-			printf("\n\tTCP[%d] State: %ld - ", i,
+			
+			if (pTcpTable->table[i].dwState != MIB_TCP_STATE_ESTAB) { continue; }
+
+			printf("\n\tTCP[%d] State: %ld - ", i, pTcpTable->table[i].dwState);
+			printf("ESTABLISHED\n");
+
+			/*printf("\n\tTCP[%d] State: %ld - ", i,
 				pTcpTable->table[i].dwState);
 			switch (pTcpTable->table[i].dwState) {
 			case MIB_TCP_STATE_CLOSED:
@@ -130,17 +141,19 @@ int main()
 			default:
 				printf("UNKNOWN dwState value: %d\n", pTcpTable->table[i].dwState);
 				break;
-			}
+			}*/
 
 			IpAddr.S_un.S_addr = (u_long)pTcpTable->table[i].dwLocalAddr;
-			InetNtop(AF_INET, &IpAddr, (PWSTR)szLocalAddr, sizeof(szLocalAddr));
+			InetNtop(AF_INET, &IpAddr.S_un.S_addr, (PWSTR)szLocalAddr, 128);
+			removeNull(szLocalAddr);
 			printf("\tTCP[%d] Local Addr: %s\n", i, szLocalAddr);
 
 			printf("\tTCP[%d] Local Port: %d \n", i,
 				ntohs((u_short)pTcpTable->table[i].dwLocalPort));
 
 			IpAddr.S_un.S_addr = (u_long)pTcpTable->table[i].dwRemoteAddr;
-			InetNtop(AF_INET, &IpAddr, (PWSTR)szRemoteAddr, sizeof(szRemoteAddr));
+			InetNtop(AF_INET, &IpAddr, (PWSTR)szRemoteAddr, 128);
+			removeNull(szRemoteAddr);
 			printf("\tTCP[%d] Remote Addr: %s\n", i, szRemoteAddr);
 
 			printf("\tTCP[%d] Remote Port: %d\n", i,
@@ -158,10 +171,36 @@ int main()
 		pTcpTable = NULL;
 	}
 
+	system("pause");
+
 	return 0;
 }
 
 #pragma region functions
+
+int removeNull(char buffer[]) {
+
+	char out[128];
+
+	memset(&out, '\0', ADDR_SIZE);
+
+	int n = 0;
+	for (int i = 0; i < ADDR_SIZE; i++) { // 128 size of szLocalAddr and szRemoteAddr
+	
+		if (buffer[i] != 0) {
+			
+			out[n] = buffer[i];
+			n++;
+		}
+	}
+
+	for (int i = 0; i < ADDR_SIZE; i++) { // 128 size of szLocalAddr and szRemoteAddr
+
+		buffer[i] = out[i];
+	}
+
+	return 0;
+}
 
 int showServices() {
 
