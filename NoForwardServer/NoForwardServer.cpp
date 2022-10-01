@@ -8,7 +8,6 @@
 
 #pragma region pragma comment
 
-//#pragma comment(lib,  "ws2_32.lib")
 #pragma comment(lib, "iphlpapi.lib")
 #pragma comment(lib, "ws2_32.lib")
 
@@ -18,12 +17,14 @@
 #pragma region include
 
 #include <iostream>
-#include <Windows.h>
+
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
-#include <tchar.h>
+
 #include <stdio.h>
+
+#include <tchar.h>
 #include <string.h>
 
 //#include "pcap.h"
@@ -132,14 +133,14 @@ int main()
 			}
 
 			IpAddr.S_un.S_addr = (u_long)pTcpTable->table[i].dwLocalAddr;
-			strcpy_s(szLocalAddr, sizeof(szLocalAddr), inet_ntoa(IpAddr));
+			InetNtop(AF_INET, &IpAddr, (PWSTR)szLocalAddr, sizeof(szLocalAddr));
 			printf("\tTCP[%d] Local Addr: %s\n", i, szLocalAddr);
 
 			printf("\tTCP[%d] Local Port: %d \n", i,
 				ntohs((u_short)pTcpTable->table[i].dwLocalPort));
 
 			IpAddr.S_un.S_addr = (u_long)pTcpTable->table[i].dwRemoteAddr;
-			strcpy_s(szRemoteAddr, sizeof(szRemoteAddr), inet_ntoa(IpAddr));
+			InetNtop(AF_INET, &IpAddr, (PWSTR)szRemoteAddr, sizeof(szRemoteAddr));
 			printf("\tTCP[%d] Remote Addr: %s\n", i, szRemoteAddr);
 
 			printf("\tTCP[%d] Remote Port: %d\n", i,
