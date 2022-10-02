@@ -27,7 +27,7 @@
 #include <tchar.h>
 #include <string.h>
 
-//#include "pcap.h"
+#include "pcap.h"
 
 #pragma endregion
 
@@ -43,142 +43,73 @@
 
 #pragma region proto
 
-int removeNull(char[]);
-int showServices();
-int forgePacket();
-int listenService();
-int decapPacket();
-int forwardPacket();
+int remove_null(char[]);
+int show_services();
+int forge_packet();
+int listen_service();
+int decap_packet();
+int forward_packet();
+
 
 #pragma endregion
 
 
+#pragma region structs
+
+
+#pragma endregion
+
+// Services
+PMIB_TCPTABLE pTcpTable;
+DWORD dwSize = 0;
+DWORD dwRetVal = 0;
+
+char szLocalAddr[ADDR_SIZE];
+char szRemoteAddr[ADDR_SIZE];
+
+struct in_addr IpAddr;
+
+int nServices;
+int nService;
+
+
+// Pcap
+pcap_t *fp;
+char errbuf[PCAP_ERRBUF_SIZE];
+u_char packet[100]; // I will need to allocate it at runtime, because packets will be diffrent sizes i suppose
+
+
+
+// netstat -aon | findstr <port>
+// tasklist /svc /FI "PID eq <pid from netstat>"
+
 int main()
 {
-	// Declare and initialize variables
-	PMIB_TCPTABLE pTcpTable;
-	DWORD dwSize = 0;
-	DWORD dwRetVal = 0;
-
-	char szLocalAddr[ADDR_SIZE];
-	char szRemoteAddr[ADDR_SIZE];
-
 	memset(&szLocalAddr, '\0', ADDR_SIZE);
 	memset(&szRemoteAddr, '\0', ADDR_SIZE);
 
-	struct in_addr IpAddr;
 
-	int i;
+	system("pause");
 
-	pTcpTable = (MIB_TCPTABLE *)MALLOC(sizeof(MIB_TCPTABLE));
-	if (pTcpTable == NULL) {
-		printf("Error allocating memory\n");
-		return 1;
-	}
+	//fp = pcap_open_live();
 
-	dwSize = sizeof(MIB_TCPTABLE);
-	// Make an initial call to GetTcpTable to
-	// get the necessary size into the dwSize variable
-	if ((dwRetVal = GetTcpTable(pTcpTable, &dwSize, TRUE)) ==
-		ERROR_INSUFFICIENT_BUFFER) {
-		FREE(pTcpTable);
-		pTcpTable = (MIB_TCPTABLE *)MALLOC(dwSize);
-		if (pTcpTable == NULL) {
-			printf("Error allocating memory\n");
-			return 1;
-		}
-	}
-	// Make a second call to GetTcpTable to get
-	// the actual data we require
-	if ((dwRetVal = GetTcpTable(pTcpTable, &dwSize, TRUE)) == NO_ERROR) {
-		printf("\tNumber of entries: %d\n", (int)pTcpTable->dwNumEntries);
-		for (i = 0; i < (int)pTcpTable->dwNumEntries; i++) {
-			
-			if (pTcpTable->table[i].dwState != MIB_TCP_STATE_ESTAB) { continue; }
 
-			printf("\n\tTCP[%d] State: %ld - ", i, pTcpTable->table[i].dwState);
-			printf("ESTABLISHED\n");
+	show_services();
 
-			/*printf("\n\tTCP[%d] State: %ld - ", i,
-				pTcpTable->table[i].dwState);
-			switch (pTcpTable->table[i].dwState) {
-			case MIB_TCP_STATE_CLOSED:
-				printf("CLOSED\n");
-				break;
-			case MIB_TCP_STATE_LISTEN:
-				printf("LISTEN\n");
-				break;
-			case MIB_TCP_STATE_SYN_SENT:
-				printf("SYN-SENT\n");
-				break;
-			case MIB_TCP_STATE_SYN_RCVD:
-				printf("SYN-RECEIVED\n");
-				break;
-			case MIB_TCP_STATE_ESTAB:
-				printf("ESTABLISHED\n");
-				break;
-			case MIB_TCP_STATE_FIN_WAIT1:
-				printf("FIN-WAIT-1\n");
-				break;
-			case MIB_TCP_STATE_FIN_WAIT2:
-				printf("FIN-WAIT-2 \n");
-				break;
-			case MIB_TCP_STATE_CLOSE_WAIT:
-				printf("CLOSE-WAIT\n");
-				break;
-			case MIB_TCP_STATE_CLOSING:
-				printf("CLOSING\n");
-				break;
-			case MIB_TCP_STATE_LAST_ACK:
-				printf("LAST-ACK\n");
-				break;
-			case MIB_TCP_STATE_TIME_WAIT:
-				printf("TIME-WAIT\n");
-				break;
-			case MIB_TCP_STATE_DELETE_TCB:
-				printf("DELETE-TCB\n");
-				break;
-			default:
-				printf("UNKNOWN dwState value: %d\n", pTcpTable->table[i].dwState);
-				break;
-			}*/
+	printf("\n[*] Choose service (%d): ", nServices);
+	scanf_s("%d", &nService);
 
-			IpAddr.S_un.S_addr = (u_long)pTcpTable->table[i].dwLocalAddr;
-			InetNtop(AF_INET, &IpAddr.S_un.S_addr, (PWSTR)szLocalAddr, 128);
-			removeNull(szLocalAddr);
-			printf("\tTCP[%d] Local Addr: %s\n", i, szLocalAddr);
-
-			printf("\tTCP[%d] Local Port: %d \n", i,
-				ntohs((u_short)pTcpTable->table[i].dwLocalPort));
-
-			IpAddr.S_un.S_addr = (u_long)pTcpTable->table[i].dwRemoteAddr;
-			InetNtop(AF_INET, &IpAddr, (PWSTR)szRemoteAddr, 128);
-			removeNull(szRemoteAddr);
-			printf("\tTCP[%d] Remote Addr: %s\n", i, szRemoteAddr);
-
-			printf("\tTCP[%d] Remote Port: %d\n", i,
-				ntohs((u_short)pTcpTable->table[i].dwRemotePort));
-		}
-	}
-	else {
-		printf("\tGetTcpTable failed with %d\n", dwRetVal);
-		FREE(pTcpTable);
-		return 1;
-	}
-
-	if (pTcpTable != NULL) {
-		FREE(pTcpTable);
-		pTcpTable = NULL;
-	}
-
+	printf("\n[*] Forging packet\n");
+	
 	system("pause");
 
 	return 0;
 }
 
-#pragma region functions
+#pragma region noforward functions
 
-int removeNull(char buffer[]) {
+// remove null bytes from array
+int remove_null(char buffer[]) {
 
 	char out[128];
 
@@ -202,24 +133,86 @@ int removeNull(char buffer[]) {
 	return 0;
 }
 
-int showServices() {
+int show_services() {
+	pTcpTable = (MIB_TCPTABLE *)MALLOC(sizeof(MIB_TCPTABLE));
+	if (pTcpTable == NULL) {
+		printf("Error allocating memory\n");
+		return 1;
+	}
+
+	dwSize = sizeof(MIB_TCPTABLE);
+	// Make an initial call to GetTcpTable to
+	// get the necessary size into the dwSize variable
+	if ((dwRetVal = GetTcpTable(pTcpTable, &dwSize, TRUE)) ==
+		ERROR_INSUFFICIENT_BUFFER) {
+		FREE(pTcpTable);
+		pTcpTable = (MIB_TCPTABLE *)MALLOC(dwSize);
+		if (pTcpTable == NULL) {
+			printf("Error allocating memory\n");
+			return 1;
+		}
+	}
+	// Make a second call to GetTcpTable to get
+	// the actual data we require
+	if ((dwRetVal = GetTcpTable(pTcpTable, &dwSize, TRUE)) == NO_ERROR) {
+		printf("\tNumber of entries: %d\n", (int)pTcpTable->dwNumEntries);
+		for (int i = 0; i < (int)pTcpTable->dwNumEntries; i++) {
+
+			nServices = i;
+
+			if (pTcpTable->table[i].dwState != MIB_TCP_STATE_ESTAB) { continue; }
+
+			printf("\n\tTCP[%d] State: %ld - ", i, pTcpTable->table[i].dwState);
+			printf("ESTABLISHED\n");
+
+			IpAddr.S_un.S_addr = (u_long)pTcpTable->table[i].dwLocalAddr;
+			InetNtop(AF_INET, &IpAddr.S_un.S_addr, (PWSTR)szLocalAddr, 128);
+			remove_null(szLocalAddr);
+			printf("\tTCP[%d] Local Addr: %s\n", i, szLocalAddr);
+
+			printf("\tTCP[%d] Local Port: %d \n", i,
+				ntohs((u_short)pTcpTable->table[i].dwLocalPort));
+
+			IpAddr.S_un.S_addr = (u_long)pTcpTable->table[i].dwRemoteAddr;
+			InetNtop(AF_INET, &IpAddr, (PWSTR)szRemoteAddr, 128);
+			remove_null(szRemoteAddr);
+			printf("\tTCP[%d] Remote Addr: %s\n", i, szRemoteAddr);
+
+			printf("\tTCP[%d] Remote Port: %d\n", i,
+				ntohs((u_short)pTcpTable->table[i].dwRemotePort));
+		}
+	}
+	else {
+		printf("\tGetTcpTable failed with %d\n", dwRetVal);
+		FREE(pTcpTable);
+		return 1;
+	}
+
+	if (pTcpTable != NULL) {
+		FREE(pTcpTable);
+		pTcpTable = NULL;
+	}
+}
+
+int forge_packet() {
 
 }
 
-int forgePacket() {
+int listen_service() {
 
 }
 
-int listenService() {
+int decap_packet() {
 
 }
 
-int decapPacket() {
+int forward_packet() {
 
 }
 
-int forwardPacket() {
+#pragma endregion
 
-}
+#pragma region pcap functions
+
 
 #pragma endregion

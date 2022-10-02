@@ -70,7 +70,7 @@
 #define lib_pcap_pcap_h
 
 /*
- * Some software that uses libpcap/WinPcap/Npcap defines _MSC_VER before
+ * Some software that uses libWinNpcap defines _MSC_VER before
  * includeing pcap.h if it's not defined - and it defines it to 1500.
  * (I'm looking at *you*, lwIP!)
  *
@@ -112,9 +112,9 @@
   #endif
 #endif
 
-#include "pcap/funcattrs.h"
+#include "funcattrs.h"
 
-#include "pcap/pcap-inttypes.h"
+#include "pcap-inttypes.h"
 
 #if defined(_WIN32)
   #include <winsock2.h>		/* u_int, u_char etc. */
@@ -127,10 +127,10 @@
   #include <sys/time.h>
 #endif /* _WIN32/MSDOS/UN*X */
 
-#include "pcap/socket.h"	/* for SOCKET, as the active-mode rpcap APIs use it */
+#include "socket.h"	/* for SOCKET, as the active-mode rpcap APIs use it */
 
 #ifndef PCAP_DONT_INCLUDE_PCAP_BPF_H
-#include "pcap/bpf.h"
+#include "bpf.h"
 #endif
 
 #include <stdio.h>
@@ -198,7 +198,7 @@ typedef struct pcap_addr pcap_addr_t;
  *
  * Then supply the changes by forking the branch at
  *
- *	https://github.com/the-tcpdump-group/libpcap/tree/master
+ *	https://github.com/the-tcpdump-group/libtree/master
  *
  * and issuing a pull request, so that future versions of libpcap and
  * programs that use it (such as tcpdump) will be able to read your new

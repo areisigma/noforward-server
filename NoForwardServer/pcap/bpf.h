@@ -86,8 +86,8 @@
   #include <sys/types.h>
 #endif
 
-#include <pcap/funcattrs.h>
-#include <pcap/dlt.h>
+#include "funcattrs.h"
+#include "dlt.h"
 
 #ifdef __cplusplus
 extern "C" {
