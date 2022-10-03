@@ -50,6 +50,8 @@ int listen_service();
 int decap_packet();
 int forward_packet();
 
+BOOL LoadNpcapDlls();
+void ifprint(pcap_if_t);
 
 #pragma endregion
 
@@ -74,10 +76,12 @@ int nService;
 
 
 // Pcap
+pcap_if_t *alldevs;
+pcap_if_t *d;
+
 pcap_t *fp;
 char errbuf[PCAP_ERRBUF_SIZE];
 u_char packet[100]; // I will need to allocate it at runtime, because packets will be diffrent sizes i suppose
-
 
 
 // netstat -aon | findstr <port>
@@ -88,8 +92,26 @@ int main()
 	memset(&szLocalAddr, '\0', ADDR_SIZE);
 	memset(&szRemoteAddr, '\0', ADDR_SIZE);
 
+	// Load Npcap and its functions. 
+	if (!LoadNpcapDlls())
+	{
+		fprintf(stderr, "[!] Couldn't load Npcap\n");
+		system("pause");
+		exit(1);
+	}
 
-	system("pause");
+	/* Retrieve the device list */
+	if (pcap_findalldevs(&alldevs, errbuf) == -1)
+	{
+		fprintf(stderr, "[!] Error in pcap_findalldevs: %s\n", errbuf);
+		system("pause");
+		exit(1);
+	}
+
+	for (d = alldevs; d; d = d->next)
+	{
+		ifprint(d);
+	}
 
 	//fp = pcap_open_live();
 
@@ -210,9 +232,41 @@ int forward_packet() {
 
 }
 
+
+
 #pragma endregion
 
 #pragma region pcap functions
 
+BOOL LoadNpcapDlls()
+{
+	TCHAR npcap_dir[512];
+	UINT len;
+	len = GetSystemDirectory(npcap_dir, 480);
+	if (!len) {
+		fprintf(stderr, "Error in GetSystemDirectory: %x", GetLastError());
+		return FALSE;
+	}
+	_tcscat_s(npcap_dir, 512, TEXT("\\Npcap"));
+	if (SetDllDirectory(npcap_dir) == 0) {
+		fprintf(stderr, "Error in SetDllDirectory: %x", GetLastError());
+		return FALSE;
+	}
+	return TRUE;
+}
+
+void ifprint(pcap_if_t *d)
+{
+	pcap_addr_t *a;
+	char ip6str[128];
+	static int i = 0;
+
+	if (d->description) {
+		printf("[%2d] %s", i, d->description);
+		i++;
+	}
+
+	printf("\n");
+}
 
 #pragma endregion
