@@ -1,0 +1,5 @@
+﻿  main.cpp
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(221): warning C4244: "argument": konwersja z "DWORD" do "u_short", możliwa utrata danych
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(223): warning C4244: "argument": konwersja z "DWORD" do "u_short", możliwa utrata danych
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(228): warning C4715: "show_services”: niewszystkie ścieżki kodu zwracają wartość
+  noforward-server.vcxproj -> C:\Users\olaf\Documents\noforward-server\Debug\noforward-server.exe
