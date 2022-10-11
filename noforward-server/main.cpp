@@ -46,7 +46,7 @@ u_int nDev;
 
 pcap_t *fp;
 char errbuf[PCAP_ERRBUF_SIZE];
-u_char *packet[]; // I will need to allocate it at runtime, because packets will be diffrent sizes i suppose
+u_char *packet;
 
 
 
@@ -58,23 +58,49 @@ struct service {
 	DWORD dwRemotePort;
 };
 
-/*struct eth_hdr {
+// 14 bytes
+struct eth_hdr {
 	u_char source[6];
 	u_char destination[6];
-	u_char type[2];
+	u_short type;
 };
 
+// 20 bytes
 struct ip_hdr{
-	WORD ver;
-	WORD ihl;
-	DWORD tos;
+	u_char ip_ver_hdr_len;
+	u_char ip_tos;
+	u_short ip_len;
+	u_short ip_id;
+	u_short ip_frag_offset;
+	u_char ip_ttl;
+	u_char ip_type;
+	u_short ip_chksum;
+	u_int ip_src_addr;
+	u_int ip_dst_addr;
+};
 
-};*/
+// 20 bytes
+struct tcp_hdr {
+	u_short tcp_src_port;
+	u_short tpc_dst_port;
+	u_int tcp_seq;
+	u_int tcp_ack;
+	u_char reserved : 4;
+	u_char tcp_offset : 4;
+	u_char tcp_flags;
+#define TCP_FIN 0x01
+#define TCP_SYN 0x02
+#define TCP_RST 0x04
+#define TCP_PUSH 0x08
+#define TCP_ACK 0x10
+#define TCP_URG 0x20
+	u_short tcp_window;
+	u_short tcp_chksum;
+	u_short tcp_urgent;
+};
 
-service *lServ; // local ip struct
-service *rServ; // remote ip struct
-
-in_addr ip_hdr;
+service *lServ; // local service info struct
+service *rServ; // remote service info struct // propably this will gonna be a array for clients
 
 // netstat -aon | findstr <port>
 // tasklist /svc /FI "PID eq <pid from netstat>"
@@ -134,13 +160,18 @@ int main()
 		fprintf(stderr, "\nUnable to open the adapter. %s is not supported by WinPcap\n", d->name);
 	}
 
-	*packet = new u_char[20]; // only header for now
-	
+	// Dynamic array, now i have undefined length of array so it's "unlimited"
+	packet = new u_char;
+
 
 	system("pause");
 
 	free(fp);
 	free(lServ);
+	free(rServ);
+
+	delete packet;
+
 	return 0;
 }
 
@@ -253,10 +284,7 @@ int show_services() {
 	}
 }
 
-// send packet
-int send_packet(u_char *packet[]) {
-
-	pcap_sendpacket(fp, *packet, sizeof(packet));
+u_char forgePacket() {
 
 	return 0;
 }
