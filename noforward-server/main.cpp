@@ -167,15 +167,13 @@ int main()
 
 	// Dynamic array, now i have undefined length of array so it's "unlimited"
 	u_char *packet = new u_char[65535];
+	memset(packet, '\0', sizeof(packet));
 
 	forge_packet(packet);
 
 
-	system("pause");
-
-
 	delete packet;
-
+	system("pause");
 	return 0;
 }
 
@@ -264,7 +262,7 @@ int show_services() {
 	if (pTcpTable != NULL) {
 
 		while (true) {
-			printf("\n[*] Choose service (%d): ", nServices);
+			printf("\n[$] Choose service (%d): ", nServices);
 			scanf_s("%d", &nService);
 
 			if (nService <= nServices)
@@ -281,7 +279,7 @@ int show_services() {
 		printf("\n[+] %s\n", iptos(lServ->dwLocalAddr));
 		printf("[+] %d\n", htons(lServ->dwLocalPort));
 		printf("[+] %s\n", iptos(lServ->dwRemoteAddr));
-		printf("[+] %d\n", htons(lServ->dwRemotePort));
+		printf("[+] %d\n\n", htons(lServ->dwRemotePort));
 
 		FREE(pTcpTable);
 		pTcpTable = NULL;
@@ -421,8 +419,11 @@ int find_router_mac() {
 
 int fill_mac(u_char *packet, u_char mac[], const char *dest, int offset) {
 
-	memcpy(packet, &mac, 6);
-	printf("[*] %s MAC: %x.%x.%x.%x.%x.%x\n", dest, packet[0+offset],
+	for (int i = offset; i < offset + 6; i++) {
+		packet[i] = mac[i];
+	}
+
+	printf("[*] %s MAC: %x:%x:%x:%x:%x:%x\n", dest, packet[0+offset],
 													packet[1 + offset],
 													packet[2 + offset],
 													packet[3 + offset],
@@ -435,13 +436,17 @@ int fill_mac(u_char *packet, u_char mac[], const char *dest, int offset) {
 // put mac addresses, ips, tcp things into packet
 int forge_packet(u_char *packet) {
 
+	int offset = 0; // local packet offset
 	u_char srcMac[6];
 	u_char dstMac[6];
 
+	memset(&srcMac, '\0', 6);
+	memset(&dstMac, '\0', 6);
+
 	find_mac(d, srcMac);
 
-	fill_mac(packet, srcMac, "Source", 0);
-	fill_mac(packet, dstMac, "Destination", 6);
+	fill_mac(packet, srcMac, "Source", offset); offset += 6;
+	fill_mac(packet, dstMac, "Destination", offset); offset += 6;
 
 
 	return 0;
