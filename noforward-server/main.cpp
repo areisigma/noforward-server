@@ -17,11 +17,15 @@
 
 int remove_null(char[]);
 int show_services();
+int forge_packet(u_char*);
+
+int fill_mac(pcap_if_t*, u_char[]);
+//int fill_ip();
+//int fill_tcp();
 
 BOOL LoadNpcapDlls();
 void ifprint(pcap_if_t*);
 char *iptos(u_long);
-
 
 
 // Services
@@ -46,7 +50,6 @@ u_int nDev;
 
 pcap_t *fp;
 char errbuf[PCAP_ERRBUF_SIZE];
-u_char *packet;
 
 
 
@@ -58,6 +61,7 @@ struct service {
 	DWORD dwRemotePort;
 };
 
+/*
 // 14 bytes
 struct eth_hdr {
 	u_char source[6];
@@ -67,16 +71,16 @@ struct eth_hdr {
 
 // 20 bytes
 struct ip_hdr{
+	ULONG ip_src_addr;
+	ULONG ip_dst_addr;
 	u_char ip_ver_hdr_len;
 	u_char ip_tos;
 	u_short ip_len;
 	u_short ip_id;
+	u_short ip_chksum;
 	u_short ip_frag_offset;
 	u_char ip_ttl;
 	u_char ip_type;
-	u_short ip_chksum;
-	u_int ip_src_addr;
-	u_int ip_dst_addr;
 };
 
 // 20 bytes
@@ -98,6 +102,7 @@ struct tcp_hdr {
 	u_short tcp_chksum;
 	u_short tcp_urgent;
 };
+*/
 
 service *lServ; // local service info struct
 service *rServ; // remote service info struct // propably this will gonna be a array for clients
@@ -155,20 +160,19 @@ int main()
 	// Show and choose service
 	show_services(); // TODO: show pid and process name and not ip
 
-	// Open adapter
-	if ((fp = pcap_open(d->name, 65535, PCAP_OPENFLAG_PROMISCUOUS, 1000, NULL, errbuf)) == NULL) {
+	// Open adapter; i haven't seen packet bigger than 800 bytes, so 2000 bytes are far more than i need
+	if ((fp = pcap_open(d->name, 2048, PCAP_OPENFLAG_PROMISCUOUS, 1000, NULL, errbuf)) == NULL) {
 		fprintf(stderr, "\nUnable to open the adapter. %s is not supported by WinPcap\n", d->name);
 	}
 
 	// Dynamic array, now i have undefined length of array so it's "unlimited"
-	packet = new u_char;
+	u_char *packet = new u_char[65535];
+
+	forge_packet(packet);
 
 
 	system("pause");
 
-	free(fp);
-	free(lServ);
-	free(rServ);
 
 	delete packet;
 
@@ -284,7 +288,161 @@ int show_services() {
 	}
 }
 
-u_char forgePacket() {
+int compare_guid(wchar_t *wszPcapName, wchar_t *wszIfName)
+{
+	wchar_t *pc, *ic;
+
+	// Find first { char in device name from pcap
+	for (pc = wszPcapName; ; ++pc)
+	{
+		if (!*pc)
+			return -1;
+
+		if (*pc == L'{') {
+			pc++;
+			break;
+		}
+	}
+
+	// Find first { char in interface name from windows
+	for (ic = wszIfName; ; ++ic)
+	{
+		if (!*ic)
+			return 1;
+
+		if (*ic == L'{') {
+			ic++;
+			break;
+		}
+	}
+
+	// See if the rest of the GUID string matches
+	for (;; ++pc, ++ic)
+	{
+		if (!pc)
+			return -1;
+
+		if (!ic)
+			return 1;
+
+		if ((*pc == L'}') && (*ic == L'}'))
+			return 0;
+
+		if (*pc != *ic)
+			return *ic - *pc;
+	}
+}
+
+int find_mac(pcap_if_t *d, u_char mac_addr[6]) {
+	// Declare and initialize variables.
+
+	wchar_t* wszWideName = NULL;
+
+	DWORD dwSize = 0;
+	DWORD dwRetVal = 0;
+
+	int nRVal = 0;
+
+	unsigned int i;
+
+
+	/* variables used for GetIfTable and GetIfEntry */
+	MIB_IFTABLE *pIfTable;
+	MIB_IFROW *pIfRow;
+
+	// Allocate memory for our pointers.
+	pIfTable = (MIB_IFTABLE *)malloc(sizeof(MIB_IFTABLE));
+	if (pIfTable == NULL) {
+		return 0;
+	}
+	// Make an initial call to GetIfTable to get the
+	// necessary size into dwSize
+	dwSize = sizeof(MIB_IFTABLE);
+	dwRetVal = GetIfTable(pIfTable, &dwSize, FALSE);
+
+	if (dwRetVal == ERROR_INSUFFICIENT_BUFFER) {
+		free(pIfTable);
+		pIfTable = (MIB_IFTABLE *)malloc(dwSize);
+		if (pIfTable == NULL) {
+			return 0;
+		}
+
+		dwRetVal = GetIfTable(pIfTable, &dwSize, FALSE);
+	}
+
+	if (dwRetVal != NO_ERROR)
+		goto done;
+
+	// Convert input pcap device name to a wide string for compare
+	{
+		size_t stISize, stOSize;
+
+		stISize = strlen(d->name) + 1;
+
+		wszWideName = (wchar_t*)malloc(stISize * sizeof(wchar_t));
+
+		if (!wszWideName)
+			goto done;
+
+		mbstowcs_s(&stOSize, wszWideName, stISize, d->name, stISize);
+	}
+
+	for (i = 0; i < pIfTable->dwNumEntries; i++) {
+		pIfRow = (MIB_IFROW *)& pIfTable->table[i];
+
+		if (!compare_guid(wszWideName, pIfRow->wszName)) {
+			if (pIfRow->dwPhysAddrLen != 6)
+				continue;
+
+			memcpy(mac_addr, pIfRow->bPhysAddr, 6);
+			nRVal = 1;
+			break;
+		}
+	}
+
+done:
+	if (pIfTable != NULL)
+		free(pIfTable);
+	pIfTable = NULL;
+
+	if (wszWideName != NULL)
+		free(wszWideName);
+	wszWideName = NULL;
+
+	return nRVal;
+}
+
+int find_router_mac() {
+
+	
+
+	return 0;
+}
+
+int fill_mac(u_char *packet, u_char mac[], const char *dest, int offset) {
+
+	memcpy(packet, &mac, 6);
+	printf("[*] %s MAC: %x.%x.%x.%x.%x.%x\n", dest, packet[0+offset],
+													packet[1 + offset],
+													packet[2 + offset],
+													packet[3 + offset],
+													packet[4 + offset],
+													packet[5 + offset]);
+
+	return 0;
+}
+
+// put mac addresses, ips, tcp things into packet
+int forge_packet(u_char *packet) {
+
+	u_char srcMac[6];
+	u_char dstMac[6];
+
+	find_mac(d, srcMac);
+
+	fill_mac(packet, srcMac, "Source", 0);
+	fill_mac(packet, dstMac, "Destination", 6);
+
 
 	return 0;
 }
