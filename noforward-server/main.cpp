@@ -26,6 +26,7 @@ int fill_mac(pcap_if_t*, u_char[]);
 BOOL LoadNpcapDlls();
 void ifprint(pcap_if_t*);
 char *iptos(u_long);
+char *iptos(u_long, bool);
 
 
 // Services
@@ -178,7 +179,7 @@ int main()
 }
 
 
-// remove null bytes from array
+// removes null bytes from array
 int remove_null(char buffer[]) {
 
 	char out[128];
@@ -203,7 +204,7 @@ int remove_null(char buffer[]) {
 	return 0;
 }
 
-// show established connections
+// shows established connections
 int show_services() {
 	pTcpTable = (MIB_TCPTABLE *)MALLOC(sizeof(MIB_TCPTABLE));
 	if (pTcpTable == NULL) {
@@ -331,7 +332,8 @@ int compare_guid(wchar_t *wszPcapName, wchar_t *wszIfName)
 	}
 }
 
-int find_mac(pcap_if_t *d, u_char mac_addr[6]) {
+// gets mac of NIC from GetIfTable
+int find_local_mac(u_char mac_addr[6]) {
 	// Declare and initialize variables.
 
 	wchar_t* wszWideName = NULL;
@@ -410,17 +412,89 @@ done:
 	return nRVal;
 }
 
-int find_router_mac() {
+int print_arp_error(int ret) {
 
-	
+	switch (ret) {
+	case ERROR_BAD_NET_NAME:
+		printf("\tERROR_BAD_NET_NAME\n");
+		break;
+	case ERROR_BUFFER_OVERFLOW:
+		printf("\tERROR_BUFFER_OVERFLOW\n");
+		break;
+	case ERROR_GEN_FAILURE:
+		printf("\tERROR_GEN_FAILURE\n");
+		break;
+	case ERROR_INVALID_PARAMETER:
+		printf("\tERROR_INVALID_PARAMETER\n");
+		break;
+	case ERROR_INVALID_USER_BUFFER:
+		printf("\tERROR_INVALID_USER_BUFFER\n");
+		break;
+	case ERROR_NOT_FOUND:
+		printf("\tERROR_NOT_FOUND\n");
+		break;
+	case ERROR_NOT_SUPPORTED:
+		printf("\tERROR_NOT_SUPPORTED\n");
+		break;
+	default:
+
+		break;
+	}
 
 	return 0;
 }
 
+// sends ARP to router to gather it's mac address
+int find_router_mac(u_char out[6]) {
+
+	IPAddr rAddr = 0;
+	char dtAddr[15]; // dotted router ip address
+	in_addr *rAddrStruct = new in_addr;
+	u_char mac[6];
+	u_long macLen = 6;
+
+	memset(&dtAddr, '\0', sizeof(dtAddr));
+	memcpy(&dtAddr, iptos(lServ->dwLocalAddr, true), 3 * 4 + 3);
+
+	if (dtAddr == NULL) {
+
+		printf("[!] Local IP address not found!\n");
+		return 0;
+	}
+
+	//printf("[*] Router IP: %s\n", dtAddr);
+
+	if (inet_pton(AF_INET, (PCSTR) dtAddr, rAddrStruct) != 1) {
+		printf("[!] Error while converting router address!\n");
+		return 0;
+	}
+	
+	rAddr = rAddrStruct->S_un.S_addr;
+
+	//printf("[*] rAddr: %d\n    lAddr: %d\n", rAddr, lServ->dwLocalAddr);
+
+	int iRet = SendARP(rAddr, (IPAddr)lServ->dwLocalAddr, mac, &macLen);
+	if(iRet != NO_ERROR) {
+
+		printf("[!] Obtaining router mac address failed!\n");
+		print_arp_error(iRet);
+		return 0;
+	}
+
+	//printf("[+] Router MAC: %x:%x:%x:%x:%x:%x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+	memcpy(out, mac, sizeof(mac));
+
+	delete rAddrStruct;
+
+	return 1;
+}
+
+// fills packet with mac addresses and moves offset by length of mac address
 int fill_mac(u_char *packet, u_char mac[], const char *dest, int offset) {
 
-	for (int i = offset; i < offset + 6; i++) {
-		packet[i] = mac[i];
+	for (int i = 0; i <  6; i++) {
+		packet[i + offset] = mac[i];
 	}
 
 	printf("[*] %s MAC: %x:%x:%x:%x:%x:%x\n", dest, packet[0+offset],
@@ -429,27 +503,41 @@ int fill_mac(u_char *packet, u_char mac[], const char *dest, int offset) {
 													packet[3 + offset],
 													packet[4 + offset],
 													packet[5 + offset]);
+	offset += 6;
 
 	return 0;
 }
 
-// put mac addresses, ips, tcp things into packet
+// puts mac addresses, ips, tcp things into packet
 int forge_packet(u_char *packet) {
 
 	int offset = 0; // local packet offset
+
+	// MAC variables
 	u_char srcMac[6];
 	u_char dstMac[6];
 
+	// IP variables
+
+
+	// MAC functions
 	memset(&srcMac, '\0', 6);
 	memset(&dstMac, '\0', 6);
 
-	find_mac(d, srcMac);
+	find_local_mac(srcMac);
+	fill_mac(packet, srcMac, "Source", offset);
 
-	fill_mac(packet, srcMac, "Source", offset); offset += 6;
-	fill_mac(packet, dstMac, "Destination", offset); offset += 6;
+	if (find_router_mac(dstMac) == 0) {
+		printf("[!] Error while finding router mac!\n");
+		return 0;
+	}
+	fill_mac(packet, dstMac, "Destination", offset);
 
 
-	return 0;
+	// IP Functions
+
+
+	return 1;
 }
 
 // load npcap dlls
@@ -523,5 +611,28 @@ char *iptos(u_long in)
 	p = (u_char *)&in;
 	which = (which + 1 == IPTOSBUFFERS ? 0 : which + 1);
 	_snprintf_s(output[which], sizeof(output[which]), sizeof(output[which]), "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
+	return output[which];
+}
+
+// router ip option
+char *iptos(u_long in, bool isRouter)
+{
+	static char output[IPTOSBUFFERS][3 * 4 + 3 + 1];
+	static short which;
+	u_char *p;
+
+	p = (u_char *)&in;
+	which = (which + 1 == IPTOSBUFFERS ? 0 : which + 1);
+
+	if(isRouter)
+		_snprintf_s(output[which], sizeof(output[which]), sizeof(output[which]), "%d.%d.%d.1", p[0], p[1], p[2]);
+	else
+		_snprintf_s(output[which], sizeof(output[which]), sizeof(output[which]), "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
+
+	for (int i = 0; i < 20; i++) {
+		if (output[which][i] == '\0')
+			memset(&output[which][i], '\0', 3);
+	}
+
 	return output[which];
 }
