@@ -503,7 +503,6 @@ int fill_mac(u_char *packet, u_char mac[], const char *dest, int offset) {
 													packet[3 + offset],
 													packet[4 + offset],
 													packet[5 + offset]);
-	offset += 6;
 
 	return 0;
 }
@@ -525,16 +524,28 @@ int forge_packet(u_char *packet) {
 	memset(&dstMac, '\0', 6);
 
 	find_local_mac(srcMac);
-	fill_mac(packet, srcMac, "Source", offset);
+	fill_mac(packet, srcMac, "Source", offset); offset += 6;
 
 	if (find_router_mac(dstMac) == 0) {
 		printf("[!] Error while finding router mac!\n");
 		return 0;
 	}
-	fill_mac(packet, dstMac, "Destination", offset);
+	fill_mac(packet, dstMac, "Destination", offset); offset += 6;
 
+	// Type 0x8000 (IPv4)
+	offset++;
+	packet[offset] = 0x80;
+	offset++;
+	packet[offset] = 0x00;
 
 	// IP Functions
+
+	// Version 4 and DSF(?)
+	offset++;
+	packet[offset] = 0x45;
+	offset++;
+	packet[offset] = 0x00;
+
 
 
 	return 1;
