@@ -1,10 +1,1 @@
-﻿  main.cpp
-c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(281): warning C4244: "argument": konwersja z "DWORD" do "u_short", możliwa utrata danych
-c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(283): warning C4244: "argument": konwersja z "DWORD" do "u_short", możliwa utrata danych
-  Trwa generowanie kodu
-c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(288): warning C4715: "show_services”: niewszystkie ścieżki kodu zwracają wartość
-  5 of 22 functions (22.7%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    0 functions had inline decision re-evaluated but remain unchanged
-  Zakończono generowanie kodu
-  noforward-server.vcxproj -> C:\Users\olaf\Documents\noforward-server\Release\noforward-server.exe
+﻿  noforward-server.vcxproj -> C:\Users\olaf\Desktop\Visual Projects\noforward-server\Release\noforward-server.exe

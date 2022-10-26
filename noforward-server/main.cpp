@@ -172,6 +172,7 @@ int main()
 
 	forge_packet(packet);
 
+	// multithreading to handle clients
 
 	delete packet;
 	system("pause");
@@ -517,20 +518,27 @@ int forge_packet(u_char *packet) {
 	u_char dstMac[6];
 
 	// IP variables
-
+	int ipLenOffset;
 
 	// MAC functions
+
+	// fill with zeros, us tin case
 	memset(&srcMac, '\0', 6);
 	memset(&dstMac, '\0', 6);
 
+	// find local mac and put it in packet
 	find_local_mac(srcMac);
 	fill_mac(packet, srcMac, "Source", offset); offset += 6;
 
+	// same thing with router's mac
 	if (find_router_mac(dstMac) == 0) {
 		printf("[!] Error while finding router mac!\n");
 		return 0;
 	}
 	fill_mac(packet, dstMac, "Destination", offset); offset += 6;
+
+
+	// IP Functions
 
 	// Type 0x8000 (IPv4)
 	offset++;
@@ -538,13 +546,24 @@ int forge_packet(u_char *packet) {
 	offset++;
 	packet[offset] = 0x00;
 
-	// IP Functions
-
 	// Version 4 and DSF(?)
 	offset++;
 	packet[offset] = 0x45;
 	offset++;
 	packet[offset] = 0x00;
+
+	// 2 bytes of total length, fill later
+	offset++; ipLenOffset = offset;
+	packet[offset] = 0x00;
+	offset++;
+	packet[offset] = 0x00;
+
+	// IP identifier; this is useful just to set packets in right sequence
+	offset++;
+	packet[offset] = 0x10;
+	offset++;
+	packet[offset] = 0x00;
+
 
 
 
