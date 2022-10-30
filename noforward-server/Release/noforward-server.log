@@ -1,1 +1,11 @@
-﻿  noforward-server.vcxproj -> C:\Users\olaf\Desktop\Visual Projects\noforward-server\Release\noforward-server.exe
+﻿  main.cpp
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(138): warning C4474: „fprintf”: przekazano za dużo argumentów dla ciągu formatowania
+  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(138): note: symbole zastępcze i ich parametry oczekują 0 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 1
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(249): warning C4244: "argument": konwersja z "DWORD" do "u_short", możliwa utrata danych
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(251): warning C4244: "argument": konwersja z "DWORD" do "u_short", możliwa utrata danych
+  Trwa generowanie kodu
+  2 of 24 functions ( 8.3%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
+  Zakończono generowanie kodu
+  noforward-server.vcxproj -> C:\Users\olaf\Documents\noforward-server\Release\noforward-server.exe

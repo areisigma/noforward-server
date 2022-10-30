@@ -62,49 +62,6 @@ struct service {
 	DWORD dwRemotePort;
 };
 
-/*
-// 14 bytes
-struct eth_hdr {
-	u_char source[6];
-	u_char destination[6];
-	u_short type;
-};
-
-// 20 bytes
-struct ip_hdr{
-	ULONG ip_src_addr;
-	ULONG ip_dst_addr;
-	u_char ip_ver_hdr_len;
-	u_char ip_tos;
-	u_short ip_len;
-	u_short ip_id;
-	u_short ip_chksum;
-	u_short ip_frag_offset;
-	u_char ip_ttl;
-	u_char ip_type;
-};
-
-// 20 bytes
-struct tcp_hdr {
-	u_short tcp_src_port;
-	u_short tpc_dst_port;
-	u_int tcp_seq;
-	u_int tcp_ack;
-	u_char reserved : 4;
-	u_char tcp_offset : 4;
-	u_char tcp_flags;
-#define TCP_FIN 0x01
-#define TCP_SYN 0x02
-#define TCP_RST 0x04
-#define TCP_PUSH 0x08
-#define TCP_ACK 0x10
-#define TCP_URG 0x20
-	u_short tcp_window;
-	u_short tcp_chksum;
-	u_short tcp_urgent;
-};
-*/
-
 service *lServ; // local service info struct
 service *rServ; // remote service info struct // propably this will gonna be a array for clients
 
@@ -142,7 +99,8 @@ int main()
 
 	while (true) {
 		printf("Choose internet adapter in use: ");
-		scanf_s("%d", &nDev);
+		//scanf_s("%d", &nDev); // normally delete the commentation
+		nDev = 5;
 
 		if (nDev <= nDevs)
 			break;
@@ -162,15 +120,24 @@ int main()
 	show_services(); // TODO: show pid and process name and not ip
 
 	// Open adapter; i haven't seen packet bigger than 800 bytes, so 2000 bytes are far more than i need
-	if ((fp = pcap_open(d->name, 2048, PCAP_OPENFLAG_PROMISCUOUS, 1000, NULL, errbuf)) == NULL) {
+	if ((fp = pcap_open(d->name, 1000, PCAP_OPENFLAG_PROMISCUOUS, 1000, NULL, errbuf)) == NULL) {
 		fprintf(stderr, "\nUnable to open the adapter. %s is not supported by WinPcap\n", d->name);
 	}
 
 	// Dynamic array, now i have undefined length of array so it's "unlimited"
-	u_char *packet = new u_char[65535];
+	u_char *packet = new u_char[1000];
 	memset(packet, '\0', sizeof(packet));
 
-	forge_packet(packet);
+	if (forge_packet(packet) == 0) {
+		printf("[!] Error while forging packet!");
+		return 0;
+	}
+
+	if (pcap_sendpacket(fp, packet, 1000 /* size */) != 0)
+	{
+		fprintf(stderr, "\nError sending the packet: \n", pcap_geterr(fp));
+		return 0;
+	}
 
 	// multithreading to handle clients
 
@@ -288,6 +255,7 @@ int show_services() {
 	}
 }
 
+// idk
 int compare_guid(wchar_t *wszPcapName, wchar_t *wszIfName)
 {
 	wchar_t *pc, *ic;
@@ -413,6 +381,7 @@ done:
 	return nRVal;
 }
 
+// prints error
 int print_arp_error(int ret) {
 
 	switch (ret) {
@@ -505,7 +474,82 @@ int fill_mac(u_char *packet, u_char mac[], const char *dest, int offset) {
 													packet[4 + offset],
 													packet[5 + offset]);
 
-	return 0;
+	return 1;
+}
+
+// fills packet with ip address
+int fill_ip(u_char *packet, DWORD ip, int offset) {
+
+	char dtAddr[15]; // dotted router ip address
+	in_addr *rAddrStruct = new in_addr;
+
+	memcpy(&dtAddr, iptos(ip), 3 * 4 + 3);
+
+	if (inet_pton(AF_INET, (PCSTR)dtAddr, rAddrStruct) != 1) {
+		printf("[!] Error while converting router address!\n");
+		return 0;
+	}
+
+	
+	packet[offset] = rAddrStruct->S_un.S_un_b.s_b1; // 1st octect
+	offset++;
+	packet[offset] = rAddrStruct->S_un.S_un_b.s_b2; // 2nd octet
+	offset++;
+	packet[offset] = rAddrStruct->S_un.S_un_b.s_b3; // 3rd octet
+	offset++;
+	packet[offset] = rAddrStruct->S_un.S_un_b.s_b4; // 4th octet
+	offset++;
+
+	printf("[+] %d.%d.%d.%d\n", packet[offset -4], packet[offset -3], packet[offset -2], packet[offset -1]);
+
+	delete rAddrStruct;
+
+	return 1;
+}
+
+// ip header checksum algorithm
+uint16_t ip_checksum(void* vdata, size_t length, int sumOffset) {
+	// Cast the data pointer to one that can be indexed.
+	char* data = (char*)vdata;
+
+	// Initialise the accumulator.
+	uint32_t acc = 0xffff;
+	uint32_t bcc = 0x0000;
+
+	char *out = new char[2];
+	memset(out, '\0', 2);
+
+	// Handle complete 16-bit blocks.
+	for (size_t i = 0; i + 1 < length; i += 2) {
+		uint16_t word;
+		memcpy(&word, data + i, 2);
+		acc += ntohs(word);
+		if (acc > 0xffff) {
+			acc -= 0xffff;
+		}
+	}
+
+	// Handle any partial block at the end of the data.
+	if (length & 1) {
+		uint16_t word = 0;
+		memcpy(&word, data + length - 1, 1);
+		acc += ntohs(word);
+		if (acc > 0xffff) {
+			acc -= 0xffff;
+		}
+	}
+
+	bcc = htons(~acc);
+	memcpy(out, &bcc, 2);
+
+	data[sumOffset] = out[0]; // it may be wrong endianness idk
+	data[sumOffset + 1] = out[1];
+
+
+	delete out;
+
+	// Return the checksum in network byte order.
+	return htons(~acc);
 }
 
 // puts mac addresses, ips, tcp things into packet
@@ -519,8 +563,10 @@ int forge_packet(u_char *packet) {
 
 	// IP variables
 	int ipLenOffset;
+	int ipChkSum;
 
-	// MAC functions
+
+	// MAC
 
 	// fill with zeros, us tin case
 	memset(&srcMac, '\0', 6);
@@ -538,31 +584,83 @@ int forge_packet(u_char *packet) {
 	fill_mac(packet, dstMac, "Destination", offset); offset += 6;
 
 
-	// IP Functions
+	// IP
 
 	// Type 0x8000 (IPv4)
-	offset++;
 	packet[offset] = 0x80;
 	offset++;
 	packet[offset] = 0x00;
+	offset++;
 
 	// Version 4 and DSF(?)
-	offset++;
 	packet[offset] = 0x45;
 	offset++;
 	packet[offset] = 0x00;
+	offset++;
 
 	// 2 bytes of total length, fill later
-	offset++; ipLenOffset = offset;
-	packet[offset] = 0x00;
+	packet[offset] = 0x00; ipLenOffset = offset;
 	offset++;
-	packet[offset] = 0x00;
+	packet[offset] = 0x16; // 22 (0x16) for now
+	offset++;
 
-	// IP identifier; this is useful just to set packets in right sequence
-	offset++;
+	// IP identifier; this is useful just to set packets in right sequence, but i won't need it so much
 	packet[offset] = 0x10;
 	offset++;
 	packet[offset] = 0x00;
+	offset++;
+
+	// Flags
+	packet[offset] = 0x40;
+	offset++;
+	packet[offset] = 0x00;
+	offset++;
+
+	// TTL 128
+	packet[offset] = 0x80;
+	offset++;
+
+	// Proto TCP
+	packet[offset] = 0x06;
+	offset++;
+
+	// Header Checksum TODO
+	packet[offset] = 0x00; ipChkSum = offset;
+	offset++;
+	packet[offset] = 0x00;
+	offset++;
+
+
+	// HERE I MUST SPOOF SRC IP AND DST IP. I could sent needed ips by arguments...
+	// Source IP
+	fill_ip(packet, lServ->dwLocalAddr, offset); // Here propably remote addr from service struct will be placed
+	offset += 4;
+
+	// Destination IP
+	fill_ip(packet, lServ->dwRemoteAddr, offset);
+	offset += 4;
+
+	ip_checksum(packet, offset, ipChkSum);
+
+	printf("[*] offset: %d\n", offset);
+
+	// fill the rest of packet
+	for (int i = offset + 1; i < sizeof(packet); i++) {
+		packet[i] = i%256;
+	}
+
+	printf("PACKET: (%d)\n", sizeof(*packet));
+	for (int i = 0; i < 1000; i++) {
+		
+		if (i % 16 == 0) {
+			printf("\n");
+		}
+
+		printf("%x ", packet[i]);
+	}
+	printf("\n");
+
+	// TCP
 
 
 
