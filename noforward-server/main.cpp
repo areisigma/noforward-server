@@ -14,6 +14,7 @@
 #define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x))
 #define FREE(x) HeapFree(GetProcessHeap(), 0, (x))
 #define ADDR_SIZE 128
+#define PACKET_SIZE 1000
 
 int remove_null(char[]);
 int show_services();
@@ -124,16 +125,28 @@ int main()
 		fprintf(stderr, "\nUnable to open the adapter. %s is not supported by WinPcap\n", d->name);
 	}
 
-	// Dynamic array, now i have undefined length of array so it's "unlimited"
-	u_char *packet = new u_char[1000];
-	memset(packet, '\0', sizeof(packet));
+
+	u_char packet[PACKET_SIZE];// = new u_char[1000];
+	memset(&packet, '\0', PACKET_SIZE);
+
+
+	/*
+	Yeah, i think i could listen for packets
+	in main function and then while listening
+	on a chosen device, start a new thread
+	that handles client (who send prefabicated
+	packet to server).
+	Thus forge_packet() will ran only in threads,
+	nor in main function.
+	*/
+
 
 	if (forge_packet(packet) == 0) {
 		printf("[!] Error while forging packet!");
 		return 0;
 	}
 
-	if (pcap_sendpacket(fp, packet, 1000 /* size */) != 0)
+	if (pcap_sendpacket(fp, packet, 100 /* size */) != 0)
 	{
 		fprintf(stderr, "\nError sending the packet: \n", pcap_geterr(fp));
 		return 0;
@@ -141,7 +154,7 @@ int main()
 
 	// multithreading to handle clients
 
-	delete packet;
+	//delete packet;
 	system("pause");
 	return 0;
 }
@@ -553,7 +566,7 @@ uint16_t ip_checksum(void* vdata, size_t length, int sumOffset) {
 }
 
 // puts mac addresses, ips, tcp things into packet
-int forge_packet(u_char *packet) {
+int forge_packet(u_char packet[PACKET_SIZE]) {
 
 	int offset = 0; // local packet offset
 
@@ -586,8 +599,8 @@ int forge_packet(u_char *packet) {
 
 	// IP
 
-	// Type 0x8000 (IPv4)
-	packet[offset] = 0x80;
+	// Type 0x0800 (IPv4)
+	packet[offset] = 0x08;
 	offset++;
 	packet[offset] = 0x00;
 	offset++;
@@ -601,17 +614,17 @@ int forge_packet(u_char *packet) {
 	// 2 bytes of total length, fill later
 	packet[offset] = 0x00; ipLenOffset = offset;
 	offset++;
-	packet[offset] = 0x16; // 22 (0x16) for now
-	offset++;
-
-	// IP identifier; this is useful just to set packets in right sequence, but i won't need it so much
-	packet[offset] = 0x10;
-	offset++;
 	packet[offset] = 0x00;
 	offset++;
 
+	// IP identifier
+	packet[offset] = 0x12;
+	offset++;
+	packet[offset] = 0x34;
+	offset++;
+
 	// Flags
-	packet[offset] = 0x40;
+	packet[offset] = 0x00;
 	offset++;
 	packet[offset] = 0x00;
 	offset++;
@@ -633,34 +646,26 @@ int forge_packet(u_char *packet) {
 
 	// HERE I MUST SPOOF SRC IP AND DST IP. I could sent needed ips by arguments...
 	// Source IP
-	fill_ip(packet, lServ->dwLocalAddr, offset); // Here propably remote addr from service struct will be placed
+	fill_ip(packet, lServ->dwLocalAddr, offset); // client's service
 	offset += 4;
 
 	// Destination IP
-	fill_ip(packet, lServ->dwRemoteAddr, offset);
+	fill_ip(packet, lServ->dwRemoteAddr, offset); // client's network
 	offset += 4;
 
-	ip_checksum(packet, offset, ipChkSum);
+	//ip_checksum(packet, offset, ipChkSum); // propably i dont need to use it
 
-	printf("[*] offset: %d\n", offset);
-
-	// fill the rest of packet
-	for (int i = offset + 1; i < sizeof(packet); i++) {
-		packet[i] = i%256;
-	}
-
-	printf("PACKET: (%d)\n", sizeof(*packet));
-	for (int i = 0; i < 1000; i++) {
-		
-		if (i % 16 == 0) {
-			printf("\n");
-		}
-
-		printf("%x ", packet[i]);
-	}
-	printf("\n");
 
 	// TCP
+
+	// Source Port
+	packet[offset] = 42069; // remote port of client's service connection
+	offset++;
+
+	// Dest Port
+	packet[offset] = 42069; // local port of client's service connection
+	offset++;
+
 
 
 
