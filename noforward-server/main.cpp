@@ -20,7 +20,7 @@ int remove_null(char[]);
 int show_services();
 int forge_packet(u_char*);
 
-int fill_mac(pcap_if_t*, u_char[]);
+//int fill_mac(pcap_if_t*, u_char[]);
 //int fill_ip();
 //int fill_tcp();
 
@@ -491,7 +491,7 @@ int fill_mac(u_char *packet, u_char mac[], const char *dest, int offset) {
 }
 
 // fills packet with ip address
-int fill_ip(u_char *packet, DWORD ip, int offset) {
+int fill_ip_addr(u_char *packet, DWORD ip, int offset) {
 
 	char dtAddr[15]; // dotted router ip address
 	in_addr *rAddrStruct = new in_addr;
@@ -565,39 +565,7 @@ uint16_t ip_checksum(void* vdata, size_t length, int sumOffset) {
 	return htons(~acc);
 }
 
-// puts mac addresses, ips, tcp things into packet
-int forge_packet(u_char packet[PACKET_SIZE]) {
-
-	int offset = 0; // local packet offset
-
-	// MAC variables
-	u_char srcMac[6];
-	u_char dstMac[6];
-
-	// IP variables
-	int ipLenOffset;
-	int ipChkSum;
-
-
-	// MAC
-
-	// fill with zeros, us tin case
-	memset(&srcMac, '\0', 6);
-	memset(&dstMac, '\0', 6);
-
-	// find local mac and put it in packet
-	find_local_mac(srcMac);
-	fill_mac(packet, srcMac, "Source", offset); offset += 6;
-
-	// same thing with router's mac
-	if (find_router_mac(dstMac) == 0) {
-		printf("[!] Error while finding router mac!\n");
-		return 0;
-	}
-	fill_mac(packet, dstMac, "Destination", offset); offset += 6;
-
-
-	// IP
+int fill_ip(u_char *packet, int offset, int ipLenOffset, int ipChkSumOffset) {
 
 	// Type 0x0800 (IPv4)
 	packet[offset] = 0x08;
@@ -638,23 +606,75 @@ int forge_packet(u_char packet[PACKET_SIZE]) {
 	offset++;
 
 	// Header Checksum TODO
-	packet[offset] = 0x00; ipChkSum = offset;
+	packet[offset] = 0x00; ipChkSumOffset = offset;
 	offset++;
 	packet[offset] = 0x00;
 	offset++;
 
-
-	// HERE I MUST SPOOF SRC IP AND DST IP. I could sent needed ips by arguments...
+	// Spoof here
 	// Source IP
-	fill_ip(packet, lServ->dwLocalAddr, offset); // client's service
+	if (fill_ip_addr(packet, lServ->dwLocalAddr, offset) == 0) { // client's service
+		printf("[!] Error while filling source ip!\n");
+		return 0;
+	}
 	offset += 4;
 
 	// Destination IP
-	fill_ip(packet, lServ->dwRemoteAddr, offset); // client's network
+	if (fill_ip_addr(packet, lServ->dwRemoteAddr, offset) == 0) { // client's network
+		printf("[!] Error while filling destination ip!\n");
+		return 0;
+	}
 	offset += 4;
 
 	//ip_checksum(packet, offset, ipChkSum); // propably i dont need to use it
 
+
+	return offset;
+}
+
+
+// puts mac addresses, ips, tcp things into packet
+int forge_packet(u_char packet[PACKET_SIZE]) {
+
+	int offset = 0; // local packet offset
+
+	// MAC variables
+	u_char srcMac[6];
+	u_char dstMac[6];
+
+	// IP variables
+	int ipLenOffset;
+	int ipChkSumOffset;
+
+	//TCP variables
+
+
+
+	// MAC
+
+	// fill with zeros, us tin case
+	memset(&srcMac, '\0', 6);
+	memset(&dstMac, '\0', 6);
+
+	// find local mac and put it in packet
+	find_local_mac(srcMac);
+	fill_mac(packet, srcMac, "Source", offset); offset += 6;
+
+	// same thing with router's mac
+	if (find_router_mac(dstMac) == 0) {
+		printf("[!] Error while finding router mac!\n");
+		return 0;
+	}
+	fill_mac(packet, dstMac, "Destination", offset); offset += 6;
+
+
+	// IP
+	offset = fill_ip(packet, offset, ipLenOffset, ipChkSumOffset);
+	if (offset == 0) {
+		printf("[!] Error in ip!\n");
+		return 0;
+	}
+	
 
 	// TCP
 
@@ -666,9 +686,41 @@ int forge_packet(u_char packet[PACKET_SIZE]) {
 	packet[offset] = 42069; // local port of client's service connection
 	offset++;
 
+	// Sequence number
+	packet[offset] = 0x00;
+	offset++;
+	packet[offset] = 0x00;
+	offset++;
+	packet[offset] = 0x00;
+	offset++;
+	packet[offset] = 0x00;
+	offset++;
 
+	// Acknowledge number
+	packet[offset] = 0x00;
+	offset++;
+	packet[offset] = 0x00;
+	offset++;
+	packet[offset] = 0x00;
+	offset++;
+	packet[offset] = 0x00;
+	offset++;
 
+	// Data offset and reserved bits; it's mostly 0x50 and sometimes 0x80
+	packet[offset] = 0x50;
+	offset++;
 
+	// Flags
+	packet[offset] = 0x00000000 || // Nonce								0x00000000
+					 0x00000000 || // Congestion Window Reduced (CWR)	0x10000000
+					 0x00000000 || // ECN-Echo							0x01000000
+					 0x00000000 || // Urgent							0x00100000
+					 0x00010000 || // Ack								0x00010000
+					 0x00000000 || // Push								0x00001000
+					 0x00000000 || // Reset								0x00000100
+					 0x00000010 || // Syn								0x00000010
+					 0x00000000;   // Fin								0x00000001
+	offset++;
 
 	return 1;
 }

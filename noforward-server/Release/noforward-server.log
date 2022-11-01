@@ -1,11 +1,16 @@
 ﻿  main.cpp
-c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(161): warning C4474: „fprintf”: przekazano za dużo argumentów dla ciągu formatowania
-  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(161): note: symbole zastępcze i ich parametry oczekują 0 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 1
-c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(272): warning C4244: "argument": konwersja z "DWORD" do "u_short", możliwa utrata danych
-c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(274): warning C4244: "argument": konwersja z "DWORD" do "u_short", możliwa utrata danych
+c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(151): warning C4474: „fprintf”: przekazano za dużo argumentów dla ciągu formatowania
+  c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(151): note: symbole zastępcze i ich parametry oczekują 0 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 1
+c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(262): warning C4244: "argument": konwersja z "DWORD" do "u_short", możliwa utrata danych
+c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(264): warning C4244: "argument": konwersja z "DWORD" do "u_short", możliwa utrata danych
+c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(662): warning C4305: "=": obcięcie z "int" do "u_char"
+c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(662): warning C4309: "=": obcięcie stałej wartości
+c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(666): warning C4305: "=": obcięcie z "int" do "u_char"
+c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(666): warning C4309: "=": obcięcie stałej wartości
   Trwa generowanie kodu
-  3 of 23 functions (13.0%) were compiled, the rest were copied from previous compilation.
+c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(269): warning C4715: "show_services”: niewszystkie ścieżki kodu zwracają wartość
+  21 of 23 functions (91.3%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
     0 functions had inline decision re-evaluated but remain unchanged
   Zakończono generowanie kodu
-  noforward-server.vcxproj -> C:\Users\olaf\Documents\noforward-server\Release\noforward-server.exe
+  noforward-server.vcxproj -> C:\Users\olaf\Desktop\Visual Projects\noforward-server\Release\noforward-server.exe
