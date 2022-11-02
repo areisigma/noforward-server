@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <tchar.h>
 #include <string.h>
+#include <thread>
 
 #include "pcap.h"
 
@@ -18,7 +19,7 @@
 
 int remove_null(char[]);
 int show_services();
-int forge_packet(u_char*);
+int forge_packet_header(u_char*);
 
 //int fill_mac(pcap_if_t*, u_char[]);
 //int fill_ip();
@@ -28,32 +29,36 @@ BOOL LoadNpcapDlls();
 void ifprint(pcap_if_t*);
 char *iptos(u_long);
 char *iptos(u_long, bool);
+int stohi(char *);
 
+// for stohi
+union
+{
+	unsigned int integer;
+	unsigned char byte[4];
+} itoch;
 
-// Services
+// services
 PMIB_TCPTABLE pTcpTable;
 DWORD dwSize = 0;
 DWORD dwRetVal = 0;
 
+// for show_services() purpose
+struct in_addr IpAddr;
 char szLocalAddr[ADDR_SIZE];
 char szRemoteAddr[ADDR_SIZE];
-
-struct in_addr IpAddr;
-
 u_int nServices;
 u_int nService;
 
-
-// Pcap
+// pcap devs
 pcap_if_t *alldevs;
 pcap_if_t *d;
 u_int nDevs = 0;
 u_int nDev;
 
+// pcap socket handler
 pcap_t *fp;
 char errbuf[PCAP_ERRBUF_SIZE];
-
-
 
 // Data of service
 struct service {
@@ -64,7 +69,7 @@ struct service {
 };
 
 service *lServ; // local service info struct
-service *rServ; // remote service info struct // propably this will gonna be a array for clients
+service *rServ; // remote service info struct // propably this will gonna be a array for clients // nope, every thread will have its own
 
 // netstat -aon | findstr <port>
 // tasklist /svc /FI "PID eq <pid from netstat>"
@@ -72,6 +77,8 @@ service *rServ; // remote service info struct // propably this will gonna be a a
 
 int main()
 {
+	char type;
+
 	memset(&szLocalAddr, '\0', ADDR_SIZE);
 	memset(&szRemoteAddr, '\0', ADDR_SIZE);
 
@@ -84,6 +91,10 @@ int main()
 		system("pause");
 		exit(1);
 	}
+	
+	printf("Client/Server [C/S] > ");
+	scanf_s("%c", &type);
+	printf("[+] %s\n", type == 'S' ? "Server" : "Client");
 
 	// All devices
 	if (pcap_findalldevs(&alldevs, errbuf) == -1) {
@@ -99,9 +110,9 @@ int main()
 	}
 
 	while (true) {
-		printf("Choose internet adapter in use: ");
-		//scanf_s("%d", &nDev); // normally delete the commentation
-		nDev = 5;
+		printf("Choose internet adapter in use > ");
+		scanf_s("%d", &nDev); // normally delete the commentation
+		//nDev = 5;
 
 		if (nDev <= nDevs)
 			break;
@@ -128,7 +139,7 @@ int main()
 
 	u_char packet[PACKET_SIZE];// = new u_char[1000];
 	memset(&packet, '\0', PACKET_SIZE);
-
+	
 
 	/*
 	Yeah, i think i could listen for packets
@@ -140,13 +151,34 @@ int main()
 	nor in main function.
 	*/
 
+	if (type == 'C') {
+		char servAddr[3 * 4 + 3 + 1];
+		
+		memset(&servAddr, '\0', 3 * 4 + 3 + 1);
 
-	if (forge_packet(packet) == 0) {
-		printf("[!] Error while forging packet!");
+		// "Local"
+		printf("Enter client's service address > ");
+		scanf_s("%s", servAddr, 3 * 4 + 3 + 1); rServ->dwLocalAddr = stohi(servAddr);
+		printf("Enter client's service port > ");
+		scanf_s("%d", &rServ->dwLocalPort, 5);
+
+		memset(&servAddr, '\0', 3 * 4 + 3 + 1);
+
+		// "Remote"
+		printf("Enter client's address > ");
+		scanf_s("%s", servAddr, 3 * 4 + 3 + 1); rServ->dwRemoteAddr = stohi(servAddr);
+		printf("Enter client's port > ");
+		scanf_s("%d", &rServ->dwRemoteAddr, 5);
+
+		delete servAddr;
+	}
+
+	if (forge_packet_header(packet) == 0) {
+		printf("[!] Error while forging packet!\n");
 		return 0;
 	}
 
-	if (pcap_sendpacket(fp, packet, 100 /* size */) != 0)
+	if (pcap_sendpacket(fp, packet, 100 /* size */) != 0) // Size will be set for every packet, so there won't be any additional zeros
 	{
 		fprintf(stderr, "\nError sending the packet: \n", pcap_geterr(fp));
 		return 0;
@@ -233,6 +265,9 @@ int show_services() {
 
 			printf("\tTCP[%d] Remote Port: %d\n", i,
 				ntohs((u_short)pTcpTable->table[i].dwRemotePort));
+
+			memset(&szLocalAddr, '\0', ADDR_SIZE);
+			memset(&szRemoteAddr, '\0', ADDR_SIZE);
 		}
 	}
 	else {
@@ -244,7 +279,7 @@ int show_services() {
 	if (pTcpTable != NULL) {
 
 		while (true) {
-			printf("\n[$] Choose service (%d): ", nServices);
+			printf("\n[$] Choose service (%d) > ", nServices);
 			scanf_s("%d", &nService);
 
 			if (nService <= nServices)
@@ -565,6 +600,7 @@ uint16_t ip_checksum(void* vdata, size_t length, int sumOffset) {
 	return htons(~acc);
 }
 
+// handles the ip header in packet // ADD SERVICE
 int fill_ip(u_char *packet, int offset, int ipLenOffset, int ipChkSumOffset) {
 
 	// Type 0x0800 (IPv4)
@@ -632,60 +668,39 @@ int fill_ip(u_char *packet, int offset, int ipLenOffset, int ipChkSumOffset) {
 	return offset;
 }
 
+// fills port window with port
+int fill_tcp_port(u_char *packet, int port, int offset) {
 
-// puts mac addresses, ips, tcp things into packet
-int forge_packet(u_char packet[PACKET_SIZE]) {
+	int networkPort = htons(port);
 
-	int offset = 0; // local packet offset
+	memcpy(packet + offset, &networkPort, 2);
 
-	// MAC variables
-	u_char srcMac[6];
-	u_char dstMac[6];
+	return 1;
+}
 
-	// IP variables
-	int ipLenOffset;
-	int ipChkSumOffset;
-
-	//TCP variables
-
-
-
-	// MAC
-
-	// fill with zeros, us tin case
-	memset(&srcMac, '\0', 6);
-	memset(&dstMac, '\0', 6);
-
-	// find local mac and put it in packet
-	find_local_mac(srcMac);
-	fill_mac(packet, srcMac, "Source", offset); offset += 6;
-
-	// same thing with router's mac
-	if (find_router_mac(dstMac) == 0) {
-		printf("[!] Error while finding router mac!\n");
-		return 0;
-	}
-	fill_mac(packet, dstMac, "Destination", offset); offset += 6;
-
-
-	// IP
-	offset = fill_ip(packet, offset, ipLenOffset, ipChkSumOffset);
-	if (offset == 0) {
-		printf("[!] Error in ip!\n");
-		return 0;
-	}
-	
-
-	// TCP
+// handles the tcp header in packet // ADD SERVICE
+int fill_tcp(u_char *packet, int offset) {
 
 	// Source Port
-	packet[offset] = 42069; // remote port of client's service connection
-	offset++;
+	if (fill_tcp_port(packet, 42069, offset) == 0) { // remote port of client's service connection
+		printf("[!] Error while filling tcp source port!\n");
+		return 0;
+	}
+	offset += 2;
 
 	// Dest Port
-	packet[offset] = 42069; // local port of client's service connection
-	offset++;
+	if (fill_tcp_port(packet, 42069, offset) == 0) { // local port of client's service connection
+		printf("[!] Error while filling tcp destination port!\n");
+		return 0;
+	}
+	offset += 2;
 
+	/*
+	I don't have to bother about
+	seq and ack numbers, because
+	I will encapsulate packet,
+	that does this for me.
+	*/
 	// Sequence number
 	packet[offset] = 0x00;
 	offset++;
@@ -711,16 +726,89 @@ int forge_packet(u_char packet[PACKET_SIZE]) {
 	offset++;
 
 	// Flags
-	packet[offset] = 0x00000000 || // Nonce								0x00000000
-					 0x00000000 || // Congestion Window Reduced (CWR)	0x10000000
-					 0x00000000 || // ECN-Echo							0x01000000
-					 0x00000000 || // Urgent							0x00100000
-					 0x00010000 || // Ack								0x00010000
-					 0x00000000 || // Push								0x00001000
-					 0x00000000 || // Reset								0x00000100
-					 0x00000010 || // Syn								0x00000010
-					 0x00000000;   // Fin								0x00000001
+	/*packet[offset] = 0x00000000 | // Nonce							0x00000000
+					 0x00000000 | // Congestion Window Reduced (CWR)	0x10000000
+					 0x00000000 | // ECN-Echo							0x01000000
+					 0x00000000 | // Urgent							0x00100000
+					 0x00010000 | // Ack								0x00010000
+					 0x00000000 | // Push								0x00001000
+					 0x00000000 | // Reset								0x00000100
+					 0x00000010 | // Syn								0x00000010
+					 0x00000000;   // Fin								0x00000001*/
+	//packet[offset] = 0x12; // SYN, ACK
+	packet[offset] = 0x10; // ACK
 	offset++;
+
+	// Window Size; size of receive data (whatever that means)
+	packet[offset] = 0x00;
+	offset++;
+	packet[offset] = 0x00;
+	offset++;
+
+	// Maybe this will be needed, but i dont think so, because of encapsulated packet
+	// Checksum
+	packet[offset] = 0x00;
+	offset++;
+	packet[offset] = 0x00;
+	offset++;
+
+	// Urgent pointer; i do not use URG flag, so this always will be set to 0x0
+	packet[offset] = 0x00;
+	offset++;
+	packet[offset] = 0x00;
+	offset++;
+
+	return offset;
+}
+
+// puts mac addresses, ips, tcp things into packet
+int forge_packet_header(u_char packet[PACKET_SIZE]) {
+
+	int offset = 0; // local packet offset
+
+	// MAC variables
+	u_char srcMac[6];
+	u_char dstMac[6];
+
+	// IP variables
+	int ipLenOffset = 0;
+	int ipChkSumOffset = 0;
+
+	//TCP variables
+
+
+	// MAC
+	// fill with zeros, us tin case
+	memset(&srcMac, '\0', 6);
+	memset(&dstMac, '\0', 6);
+
+	// find local mac and put it in packet
+	find_local_mac(srcMac);
+	fill_mac(packet, srcMac, "Source", offset); offset += 6;
+
+	// same thing with router's mac
+	if (find_router_mac(dstMac) == 0) {
+		printf("[!] Error while finding router mac!\n");
+		return 0;
+	}
+	fill_mac(packet, dstMac, "Destination", offset); offset += 6;
+
+	// I actually type of ethernet frame (IPv4) put into fill_ip(), but that does not matter so much
+	// IP
+	offset = fill_ip(packet, offset, ipLenOffset, ipChkSumOffset);
+	if (offset == 0) {
+		printf("[!] Error in ip!\n");
+		return 0;
+	}
+	
+	// TCP
+	offset = fill_tcp(packet, offset);
+	if (offset == 0) {
+		printf("[!] Error in tcp!\n");
+		return 0;
+	}
+	
+	
 
 	return 1;
 }
@@ -820,4 +908,43 @@ char *iptos(u_long in, bool isRouter)
 	}
 
 	return output[which];
+}
+
+// string to host integer
+int stohi(char *ip) {
+	char c;
+	c = *ip;
+	unsigned int integer;
+	int val;
+	int i, j = 0;
+	for (j = 0; j < 4; j++) {
+		if (!isdigit(c)) {  //first char is 0
+			return (0);
+		}
+		val = 0;
+		for (i = 0; i < 3; i++) {
+			if (isdigit(c)) {
+				val = (val * 10) + (c - '0');
+				c = *++ip;
+			}
+			else
+				break;
+		}
+		if (val < 0 || val>255) {
+			return (0);
+		}
+		if (c == '.') {
+			integer = (integer << 8) | val;
+			c = *++ip;
+		}
+		else if (j == 3 && c == '\0') {
+			integer = (integer << 8) | val;
+			break;
+		}
+
+	}
+	if (c != '\0') {
+		return (0);
+	}
+	return (htonl(integer));
 }
