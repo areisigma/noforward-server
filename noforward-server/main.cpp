@@ -29,14 +29,6 @@ BOOL LoadNpcapDlls();
 void ifprint(pcap_if_t*);
 char *iptos(u_long);
 char *iptos(u_long, bool);
-int stohi(char *);
-
-// for stohi
-union
-{
-	unsigned int integer;
-	unsigned char byte[4];
-} itoch;
 
 // services
 PMIB_TCPTABLE pTcpTable;
@@ -59,6 +51,7 @@ u_int nDev;
 // pcap socket handler
 pcap_t *fp;
 char errbuf[PCAP_ERRBUF_SIZE];
+bpf_u_int32 netmask;
 
 // Data of service
 struct service {
@@ -110,7 +103,7 @@ int main()
 	}
 
 	while (true) {
-		printf("Choose internet adapter in use > ");
+		printf("\nChoose internet adapter in use > ");
 		scanf_s("%d", &nDev); // normally delete the commentation
 		//nDev = 5;
 
@@ -136,9 +129,19 @@ int main()
 		fprintf(stderr, "\nUnable to open the adapter. %s is not supported by WinPcap\n", d->name);
 	}
 
+	bpf_program fcode;
+	if (pcap_compile(fp, &fcode, "ip and tcp", 1, netmask) < 0)
+	{
+		fprintf(stderr, "\nUnable to compile the packet filter. Check the syntax.\n");
+		return 0;
+	}
 
-	u_char packet[PACKET_SIZE];// = new u_char[1000];
-	memset(&packet, '\0', PACKET_SIZE);
+	//set the filter
+	if (pcap_setfilter(fp, &fcode) < 0)
+	{
+		fprintf(stderr, "\nError setting the filter.\n");
+		return 0;
+	}
 	
 
 	/*
@@ -147,8 +150,18 @@ int main()
 	on a chosen device, start a new thread
 	that handles client (who send prefabicated
 	packet to server).
-	Thus forge_packet() will ran only in threads,
+	Thus forge_packet() will run only in threads,
 	nor in main function.
+	*/
+
+	/*
+	What header should contain?
+	Spoofed IPs, ports (so send it in service struct);
+	Some bytes should show, that received packet
+	is a packet sent to this application; (ChkSum, ACK/SYN numbers)
+	Maybe i will work some more on sizes contained in packet,
+	like header size, window size etc.
+	Window size is length of packet from original application!
 	*/
 
 	if (type == 'C') {
@@ -158,7 +171,7 @@ int main()
 
 		// "Local"
 		printf("Enter client's service address > ");
-		scanf_s("%s", servAddr, 3 * 4 + 3 + 1); rServ->dwLocalAddr = stohi(servAddr);
+		scanf_s("%s", servAddr, 3 * 4 + 3 + 1); inet_pton(AF_INET, servAddr, &rServ->dwLocalAddr); //rServ->dwLocalAddr = stohi(servAddr);
 		printf("Enter client's service port > ");
 		scanf_s("%d", &rServ->dwLocalPort, 5);
 
@@ -166,25 +179,50 @@ int main()
 
 		// "Remote"
 		printf("Enter client's address > ");
-		scanf_s("%s", servAddr, 3 * 4 + 3 + 1); rServ->dwRemoteAddr = stohi(servAddr);
+		scanf_s("%s", servAddr, 3 * 4 + 3 + 1); inet_pton(AF_INET, servAddr, &rServ->dwRemoteAddr); //rServ->dwRemoteAddr = stohi(servAddr);
 		printf("Enter client's port > ");
 		scanf_s("%d", &rServ->dwRemoteAddr, 5);
 
-		delete servAddr;
+		//delete servAddr;
 	}
+
+
+	// multithreading to handle clients
+	pcap_pkthdr *header;
+	u_char *data;
+	int res;
+
+	while ((res = pcap_next_ex(fp, &header, &data)) >= 0) {
+
+		if (res == 0)
+			continue;
+
+
+	}
+
+	if (res == -1) {
+		printf("Error reading the packets: %s\n", pcap_geterr(fp));
+		return -1;
+	}
+
+
+
+	/*
+	u_char packet[PACKET_SIZE];// = new u_char[1000];
+	memset(&packet, '\0', PACKET_SIZE);
 
 	if (forge_packet_header(packet) == 0) {
 		printf("[!] Error while forging packet!\n");
 		return 0;
 	}
 
-	if (pcap_sendpacket(fp, packet, 100 /* size */) != 0) // Size will be set for every packet, so there won't be any additional zeros
+	if (pcap_sendpacket(fp, packet, 100) != 0) // Size will be set for every packet, so there won't be any additional zeros
 	{
 		fprintf(stderr, "\nError sending the packet: \n", pcap_geterr(fp));
 		return 0;
 	}
+	*/
 
-	// multithreading to handle clients
 
 	//delete packet;
 	system("pause");
@@ -842,35 +880,35 @@ void ifprint(pcap_if_t *d)
 
 
 	if (d->description) {
-		printf("[%2d] %s", i, d->description);
+		printf("[%2d] %s\n", i, d->description);
 		i++;
 	}
 
 	// IP addresses 
 	for (a = d->addresses; a; a = a->next) {
-		printf("\tAddress Family: #%d\n", a->addr->sa_family);
+		//printf("\tAddress Family: #%d\n", a->addr->sa_family);
 		switch (a->addr->sa_family)
 		{
 		case AF_INET:
-			printf("\tAddress Family Name: AF_INET\n");
+			//printf("\tAddress Family Name: AF_INET\n");
 			if (a->addr)
 				printf("\tAddress: %s\n", iptos(((struct sockaddr_in *)a->addr)->sin_addr.s_addr));
 			if (a->netmask)
-				printf("\tNetmask: %s\n", iptos(((struct sockaddr_in *)a->netmask)->sin_addr.s_addr));
+				//printf("\tNetmask: %s\n", iptos(((struct sockaddr_in *)a->netmask)->sin_addr.s_addr));
+				netmask = ((struct sockaddr_in *)(d->addresses->netmask))->sin_addr.S_un.S_addr;
 			if (a->broadaddr)
-				printf("\tBroadcast Address: %s\n", iptos(((struct sockaddr_in *)a->broadaddr)->sin_addr.s_addr));
+				//printf("\tBroadcast Address: %s\n", iptos(((struct sockaddr_in *)a->broadaddr)->sin_addr.s_addr));
 			if (a->dstaddr)
-				printf("\tDestination Address: %s\n", iptos(((struct sockaddr_in *)a->dstaddr)->sin_addr.s_addr));
+				//printf("\tDestination Address: %s\n", iptos(((struct sockaddr_in *)a->dstaddr)->sin_addr.s_addr));
 			break;
 		case AF_INET6:
-			printf("\tAddress: IPv6");
+			//printf("\tAddress: IPv6");
 			break;
 		default:
 			printf("\tAddress Family Name: Unknown\n");
 			break;
 		}
 	}
-	printf("\n");
 }
 
 // From tcptraceroute, convert a numeric IP address to a string 
@@ -908,43 +946,4 @@ char *iptos(u_long in, bool isRouter)
 	}
 
 	return output[which];
-}
-
-// string to host integer
-int stohi(char *ip) {
-	char c;
-	c = *ip;
-	unsigned int integer;
-	int val;
-	int i, j = 0;
-	for (j = 0; j < 4; j++) {
-		if (!isdigit(c)) {  //first char is 0
-			return (0);
-		}
-		val = 0;
-		for (i = 0; i < 3; i++) {
-			if (isdigit(c)) {
-				val = (val * 10) + (c - '0');
-				c = *++ip;
-			}
-			else
-				break;
-		}
-		if (val < 0 || val>255) {
-			return (0);
-		}
-		if (c == '.') {
-			integer = (integer << 8) | val;
-			c = *++ip;
-		}
-		else if (j == 3 && c == '\0') {
-			integer = (integer << 8) | val;
-			break;
-		}
-
-	}
-	if (c != '\0') {
-		return (0);
-	}
-	return (htonl(integer));
 }
