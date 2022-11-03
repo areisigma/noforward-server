@@ -1,17 +1,13 @@
 ﻿  main.cpp
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(96): warning C4473: „scanf_s”: przekazano niewystarczającą liczbę argumentów dla ciągu formatowania
-  c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(96): note: symbole zastępcze i ich parametry oczekują 2 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 1
-  c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(96): note: brakujący argument 2 o zmiennej liczbie parametrów jest wymagany w ciągu formatu „%c”
-  c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(96): note: ten argument jest używany jako rozmiar bufora
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(173): warning C4474: „scanf_s”: przekazano za dużo argumentów dla ciągu formatowania
-  c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(173): note: symbole zastępcze i ich parametry oczekują 1 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 2
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(181): warning C4474: „scanf_s”: przekazano za dużo argumentów dla ciągu formatowania
-  c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(181): note: symbole zastępcze i ich parametry oczekują 1 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 2
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(183): warning C4156: usunięcie wyrażenia tablicowego bez użycia formularza tablicy "delete"; zastąpiono formularz tablicy
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(183): warning C4154: usunięcie wyrażenia tablicowego; dostarczono konwersji do wskaźnika
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(193): warning C4474: „fprintf”: przekazano za dużo argumentów dla ciągu formatowania
-  c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(193): note: symbole zastępcze i ich parametry oczekują 0 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 1
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(307): warning C4244: "argument": konwersja z "DWORD" do "u_short", możliwa utrata danych
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(309): warning C4244: "argument": konwersja z "DWORD" do "u_short", możliwa utrata danych
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(314): warning C4715: "show_services”: niewszystkie ścieżki kodu zwracają wartość
-  noforward-server.vcxproj -> C:\Users\olaf\Desktop\Visual Projects\noforward-server\Debug\noforward-server.exe
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(90): warning C4473: „scanf_s”: przekazano niewystarczającą liczbę argumentów dla ciągu formatowania
+  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(90): note: symbole zastępcze i ich parametry oczekują 2 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 1
+  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(90): note: brakujący argument 2 o zmiennej liczbie parametrów jest wymagany w ciągu formatu „%c”
+  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(90): note: ten argument jest używany jako rozmiar bufora
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(177): warning C4474: „scanf_s”: przekazano za dużo argumentów dla ciągu formatowania
+  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(177): note: symbole zastępcze i ich parametry oczekują 1 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 2
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(185): warning C4474: „scanf_s”: przekazano za dużo argumentów dla ciągu formatowania
+  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(185): note: symbole zastępcze i ich parametry oczekują 1 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 2
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(336): warning C4244: "argument": konwersja z "DWORD" do "u_short", możliwa utrata danych
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(338): warning C4244: "argument": konwersja z "DWORD" do "u_short", możliwa utrata danych
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(343): warning C4715: "show_services”: niewszystkie ścieżki kodu zwracają wartość
+  noforward-server.vcxproj -> C:\Users\olaf\Documents\noforward-server\Debug\noforward-server.exe

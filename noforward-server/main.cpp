@@ -20,6 +20,7 @@
 int remove_null(char[]);
 int show_services();
 int forge_packet_header(u_char*);
+char service_filter(struct service*);
 
 //int fill_mac(pcap_if_t*, u_char[]);
 //int fill_ip();
@@ -125,12 +126,12 @@ int main()
 	show_services(); // TODO: show pid and process name and not ip
 
 	// Open adapter; i haven't seen packet bigger than 800 bytes, so 2000 bytes are far more than i need
-	if ((fp = pcap_open(d->name, 1000, PCAP_OPENFLAG_PROMISCUOUS, 1000, NULL, errbuf)) == NULL) {
+	if ((fp = pcap_open(d->name, 10000, PCAP_OPENFLAG_PROMISCUOUS, 1000, NULL, errbuf)) == NULL) {
 		fprintf(stderr, "\nUnable to open the adapter. %s is not supported by WinPcap\n", d->name);
 	}
 
 	bpf_program fcode;
-	if (pcap_compile(fp, &fcode, "ip and tcp", 1, netmask) < 0)
+	if (pcap_compile(fp, &fcode, (const char *)service_filter(lServ), 1, netmask) < 0)
 	{
 		fprintf(stderr, "\nUnable to compile the packet filter. Check the syntax.\n");
 		return 0;
@@ -189,7 +190,7 @@ int main()
 
 	// multithreading to handle clients
 	pcap_pkthdr *header;
-	u_char *data;
+	const u_char *data;
 	int res;
 
 	while ((res = pcap_next_ex(fp, &header, &data)) >= 0) {
@@ -850,6 +851,21 @@ int forge_packet_header(u_char packet[PACKET_SIZE]) {
 
 	return 1;
 }
+
+char service_filter(service *serv) {
+
+	char filter = (char)"ip ";
+	char ip[ADDR_SIZE];
+
+	InetNtop(AF_INET, &serv->dwRemoteAddr, (PSTR)ip, sizeof(ip));
+	remove_null(ip);
+
+	printf("%s", filter);
+
+	return filter;
+}
+
+
 
 // load npcap dlls
 BOOL LoadNpcapDlls()
