@@ -20,7 +20,7 @@
 int remove_null(char[]);
 int show_services();
 int forge_packet_header(u_char*);
-char service_filter(struct service*);
+char *service_filter(struct service*);
 
 //int fill_mac(pcap_if_t*, u_char[]);
 //int fill_ip();
@@ -131,7 +131,8 @@ int main()
 	}
 
 	bpf_program fcode;
-	if (pcap_compile(fp, &fcode, (const char *)service_filter(lServ), 1, netmask) < 0)
+	const char *filter = (const char*)service_filter(lServ);
+	if (pcap_compile(fp, &fcode, filter, 1, netmask) < 0)
 	{
 		fprintf(stderr, "\nUnable to compile the packet filter. Check the syntax.\n");
 		return 0;
@@ -852,15 +853,26 @@ int forge_packet_header(u_char packet[PACKET_SIZE]) {
 	return 1;
 }
 
-char service_filter(service *serv) {
+// make an filter of remote ip of service struct
+char *service_filter(service *serv) {
 
-	char filter = (char)"ip ";
-	char ip[ADDR_SIZE];
+	char filter[100];// = "ip.addr == \0";
+	char *ip;
+	int nullOffset = 0;
 
-	InetNtop(AF_INET, &serv->dwRemoteAddr, (PSTR)ip, sizeof(ip));
-	remove_null(ip);
+	ip = iptos(lServ->dwRemoteAddr);
 
-	printf("%s", filter);
+	for (int i = 0; i < 16; i++) {
+		if (ip[i] == '\0') {
+			nullOffset = i;
+			break;
+		}
+	}
+
+	strcpy_s(filter, 100, "ip.addr == ");
+	strncat_s(filter, 100, ip, 16);
+
+	printf("[+] Filter set: %s\n", filter);
 
 	return filter;
 }
