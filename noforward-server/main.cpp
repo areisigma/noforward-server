@@ -86,9 +86,19 @@ int main()
 		exit(1);
 	}
 	
-	printf("Client/Server [C/S] > ");
-	scanf_s("%c", &type);
-	printf("[+] %s\n", type == 'S' ? "Server" : "Client");
+	while (1) {
+		printf("Server/Client [S/C] > ");
+		scanf_s("%c", &type);
+
+		if (type != 'S' && type != 'C') {
+
+			printf("\n[!] Please type S or C\n");
+			continue;
+		}
+
+		printf("[+] %s\n", type == 'S' ? "Server" : "Client");
+		break;
+	}
 
 	// All devices
 	if (pcap_findalldevs(&alldevs, errbuf) == -1) {
@@ -193,13 +203,28 @@ int main()
 	pcap_pkthdr *header;
 	const u_char *data;
 	int res;
+	u_char packet[1000];
+
+	memset(packet, '\0', sizeof(packet));
 
 	while ((res = pcap_next_ex(fp, &header, &data)) >= 0) {
 
 		if (res == 0)
 			continue;
 
+		printf("[+] Packet!\n");
 
+		memcpy(&packet, header, sizeof(header));
+		memcpy(&packet + sizeof(header), data, sizeof(data));
+
+		for (int i = 0; i < sizeof(header) + sizeof(data); i++) {
+		
+			if (i % 16 == 0) {
+				printf("\n");
+			}
+
+			printf("%x", packet[i]);
+		}
 	}
 
 	if (res == -1) {
@@ -853,32 +878,6 @@ int forge_packet_header(u_char packet[PACKET_SIZE]) {
 	return 1;
 }
 
-// make an filter of remote ip of service struct
-char *service_filter(service *serv) {
-
-	char filter[100];// = "ip.addr == \0";
-	char *ip;
-	int nullOffset = 0;
-
-	ip = iptos(lServ->dwRemoteAddr);
-
-	for (int i = 0; i < 16; i++) {
-		if (ip[i] == '\0') {
-			nullOffset = i;
-			break;
-		}
-	}
-
-	strcpy_s(filter, 100, "ip.addr == ");
-	strncat_s(filter, 100, ip, 16);
-
-	printf("[+] Filter set: %s\n", filter);
-
-	return filter;
-}
-
-
-
 // load npcap dlls
 BOOL LoadNpcapDlls()
 {
@@ -974,4 +973,28 @@ char *iptos(u_long in, bool isRouter)
 	}
 
 	return output[which];
+}
+
+// makes an filter of remote ip of service struct
+char *service_filter(service *serv) {
+
+	char filter[100];// = "ip.addr == \0";
+	char *ip;
+	int nullOffset = 0;
+
+	ip = iptos(lServ->dwRemoteAddr);
+
+	for (int i = 0; i < 16; i++) {
+		if (ip[i] == '\0') {
+			nullOffset = i;
+			break;
+		}
+	}
+
+	strcpy_s(filter, 100, "ip.addr == ");
+	strncat_s(filter, 100, ip, 16);
+
+	printf("[+] Filter set: %s\n", filter);
+
+	return filter;
 }
