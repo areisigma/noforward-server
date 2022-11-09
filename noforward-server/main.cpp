@@ -20,7 +20,8 @@
 int remove_null(char[]);
 int show_services();
 int forge_packet_header(u_char*);
-char *service_filter(struct service*);
+//char *service_filter(struct service*);
+int listen_packet(pcap_t*);
 
 //int fill_mac(pcap_if_t*, u_char[]);
 //int fill_ip();
@@ -53,6 +54,38 @@ u_int nDev;
 pcap_t *fp;
 char errbuf[PCAP_ERRBUF_SIZE];
 bpf_u_int32 netmask;
+
+typedef struct eth_header {
+	u_char srcMac[6];
+	u_char dstMac[6];
+	u_char type[2];
+}eth_header;
+
+typedef struct ip_header {
+	u_char ver : 4;
+	u_char ihl : 4; // 0x4500 usually (like it's like allways)
+	u_short len;
+	u_char id[2];
+	u_char flags[2];
+	u_char ttl;
+	u_char proto; // TCP 0x06
+	u_short chksum;
+	u_char src[4]; // ip address
+	u_char dst[4]; // ip address
+}ip_header;
+
+typedef struct tcp_header {
+	u_short src; // source port
+	u_short dst; // dest port
+	u_int seq;
+	u_int ack;
+	u_char dOff : 4; // data offset
+	u_char res : 4; // reserved
+	u_char flags;
+	u_short wSize;
+	u_short chksum;
+	u_short urgp;
+}tcp_header;
 
 // Data of service
 struct service {
@@ -140,7 +173,7 @@ int main()
 		fprintf(stderr, "\nUnable to open the adapter. %s is not supported by WinPcap\n", d->name);
 	}
 
-	bpf_program fcode;
+	/*bpf_program fcode;
 	const char *filter = (const char*)service_filter(lServ);
 	if (pcap_compile(fp, &fcode, filter, 1, netmask) < 0)
 	{
@@ -153,7 +186,7 @@ int main()
 	{
 		fprintf(stderr, "\nError setting the filter.\n");
 		return 0;
-	}
+	}*/
 	
 
 	/*
@@ -200,37 +233,8 @@ int main()
 
 
 	// multithreading to handle clients
-	pcap_pkthdr *header;
-	const u_char *data;
-	int res;
-	u_char packet[1000];
 
-	memset(packet, '\0', sizeof(packet));
-
-	while ((res = pcap_next_ex(fp, &header, &data)) >= 0) {
-
-		if (res == 0)
-			continue;
-
-		printf("[+] Packet!\n");
-
-		memcpy(&packet, header, sizeof(header));
-		memcpy(&packet + sizeof(header), data, sizeof(data));
-
-		for (int i = 0; i < sizeof(header) + sizeof(data); i++) {
-		
-			if (i % 16 == 0) {
-				printf("\n");
-			}
-
-			printf("%x", packet[i]);
-		}
-	}
-
-	if (res == -1) {
-		printf("Error reading the packets: %s\n", pcap_geterr(fp));
-		return -1;
-	}
+	listen_packet(fp);
 
 
 
@@ -975,6 +979,7 @@ char *iptos(u_long in, bool isRouter)
 	return output[which];
 }
 
+/*
 // makes an filter of remote ip of service struct
 char *service_filter(service *serv) {
 
@@ -991,10 +996,90 @@ char *service_filter(service *serv) {
 		}
 	}
 
-	strcpy_s(filter, 100, "ip.addr == ");
+	strcpy_s(filter, 100, "host ");
 	strncat_s(filter, 100, ip, 16);
 
 	printf("[+] Filter set: %s\n", filter);
 
 	return filter;
+}
+*/
+
+int filter_packet(const u_char *data, DWORD addr) {
+
+	int ret = 1;
+	//DWORD aAddr;
+	DWORD bAddr;
+
+	//memcpy(&aAddr, &data[26], 4); // src ip
+	memcpy(&bAddr, &data[30], 4); // dst ip
+
+	if (data[23] != 0x06) // is tcp
+		ret = 0;
+
+	if (bAddr != addr)
+		ret = 0;
+
+	/*if (aAddr == 0x0201a8c0 || bAddr == 0x0201a8c0)
+		ret = 1;*/
+
+	return ret;
+}
+
+// listen packets
+int listen_packet(pcap_t *handle) {
+
+	pcap_pkthdr *header;
+	const u_char *data;
+	int res;
+	u_char packet[PACKET_SIZE];
+
+	DWORD address;
+
+	memcpy(&address, &lServ->dwRemoteAddr, sizeof(DWORD));
+	//address = htonl(address);
+
+	eth_header *eth = new eth_header;
+	ip_header *ip = new ip_header;
+	tcp_header *tcp = new tcp_header;
+
+	memset(packet, '\0', sizeof(PACKET_SIZE));
+
+	while ((res = pcap_next_ex(handle, &header, &data)) >= 0) {
+
+		// header is some of some sort, the data is whole packet (headers + data)
+
+		if (res == 0)
+			continue;
+
+		if (filter_packet(data, address) == 0)
+			continue;
+
+
+		printf("\n[+] Packet!\n");
+
+		memcpy(eth, data, sizeof(eth_header));
+		memcpy(ip, (data + sizeof(eth_header)), sizeof(ip_header));
+		memcpy(tcp, (data + sizeof(eth_header) + sizeof(ip_header)), sizeof(tcp_header));
+
+		// data is received and ever its properly put in structs, but not filtered!!!
+		printf("%x%x%x\n\n", *eth, *ip, *tcp);
+
+	}
+
+	if (res == -1) {
+		printf("[!] Error reading the packets: %s\n", pcap_geterr(fp));
+
+		delete eth;
+		delete ip;
+		delete tcp;
+
+		return 0;
+	}
+
+	delete eth;
+	delete ip;
+	delete tcp;
+
+	return 1;
 }
