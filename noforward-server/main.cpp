@@ -19,7 +19,7 @@
 
 int remove_null(char[]);
 int show_services();
-int forge_packet_header(u_char*);
+int forge_packet_header(u_char*, DWORD, DWORD);
 //char *service_filter(struct service*);
 int listen_packet(pcap_t*);
 
@@ -172,23 +172,7 @@ int main()
 	if ((fp = pcap_open(d->name, 10000, PCAP_OPENFLAG_PROMISCUOUS, 1000, NULL, errbuf)) == NULL) {
 		fprintf(stderr, "\nUnable to open the adapter. %s is not supported by WinPcap\n", d->name);
 	}
-
-	/*bpf_program fcode;
-	const char *filter = (const char*)service_filter(lServ);
-	if (pcap_compile(fp, &fcode, filter, 1, netmask) < 0)
-	{
-		fprintf(stderr, "\nUnable to compile the packet filter. Check the syntax.\n");
-		return 0;
-	}
-
-	//set the filter
-	if (pcap_setfilter(fp, &fcode) < 0)
-	{
-		fprintf(stderr, "\nError setting the filter.\n");
-		return 0;
-	}*/
 	
-
 	/*
 	Yeah, i think i could listen for packets
 	in main function and then while listening
@@ -216,7 +200,7 @@ int main()
 
 		// "Local"
 		printf("Enter client's service address > ");
-		scanf_s("%s", servAddr, 3 * 4 + 3 + 1); inet_pton(AF_INET, servAddr, &rServ->dwLocalAddr); //rServ->dwLocalAddr = stohi(servAddr);
+		scanf_s("%s", servAddr, 3 * 4 + 3 + 1); inet_pton(AF_INET, servAddr, &rServ->dwLocalAddr);
 		printf("Enter client's service port > ");
 		scanf_s("%d", &rServ->dwLocalPort, 5);
 
@@ -224,15 +208,34 @@ int main()
 
 		// "Remote"
 		printf("Enter client's address > ");
-		scanf_s("%s", servAddr, 3 * 4 + 3 + 1); inet_pton(AF_INET, servAddr, &rServ->dwRemoteAddr); //rServ->dwRemoteAddr = stohi(servAddr);
+		scanf_s("%s", servAddr, 3 * 4 + 3 + 1); inet_pton(AF_INET, servAddr, &rServ->dwRemoteAddr);
 		printf("Enter client's port > ");
 		scanf_s("%d", &rServ->dwRemoteAddr, 5);
 
 		//delete servAddr;
+
+
+		u_char packet[PACKET_SIZE];// = new u_char[1000];
+		memset(&packet, '\0', PACKET_SIZE);
+
+		if (forge_packet_header(packet, rServ->dwLocalAddr, rServ->dwRemoteAddr) == 0) {
+			printf("[!] Error while forging packet!\n");
+			return 0;
+		}
+
+		if (pcap_sendpacket(fp, packet, 100) != 0) // Size will be set for every packet, so there won't be any additional zeros
+		{
+			fprintf(stderr, "\nError sending the packet: \n", pcap_geterr(fp));
+			return 0;
+		}
+
+		printf("[+] Packet sent to: %s\n", iptos(rServ->dwRemoteAddr));
 	}
 
 
 	// multithreading to handle clients
+	
+	// i have to create two threads in client for duplex communication
 
 	listen_packet(fp);
 
@@ -242,7 +245,7 @@ int main()
 	u_char packet[PACKET_SIZE];// = new u_char[1000];
 	memset(&packet, '\0', PACKET_SIZE);
 
-	if (forge_packet_header(packet) == 0) {
+	if (forge_packet_header(packet, rServ->dwLocalAddr, rServ->dwRemoteAddr) == 0) {
 		printf("[!] Error while forging packet!\n");
 		return 0;
 	}
@@ -253,6 +256,7 @@ int main()
 		return 0;
 	}
 	*/
+	
 
 
 	//delete packet;
@@ -670,7 +674,7 @@ uint16_t ip_checksum(void* vdata, size_t length, int sumOffset) {
 }
 
 // handles the ip header in packet // ADD SERVICE
-int fill_ip(u_char *packet, int offset, int ipLenOffset, int ipChkSumOffset) {
+int fill_ip(u_char *packet, DWORD src, DWORD dst, int offset, int ipLenOffset, int ipChkSumOffset) {
 
 	// Type 0x0800 (IPv4)
 	packet[offset] = 0x08;
@@ -718,14 +722,14 @@ int fill_ip(u_char *packet, int offset, int ipLenOffset, int ipChkSumOffset) {
 
 	// Spoof here
 	// Source IP
-	if (fill_ip_addr(packet, lServ->dwLocalAddr, offset) == 0) { // client's service
+	if (fill_ip_addr(packet, src, offset) == 0) { // client's service; rServ->dwLocalAddr
 		printf("[!] Error while filling source ip!\n");
 		return 0;
 	}
 	offset += 4;
 
 	// Destination IP
-	if (fill_ip_addr(packet, lServ->dwRemoteAddr, offset) == 0) { // client's network
+	if (fill_ip_addr(packet, dst, offset) == 0) { // client's network; rServ->dwRemoteAddr
 		printf("[!] Error while filling destination ip!\n");
 		return 0;
 	}
@@ -831,7 +835,7 @@ int fill_tcp(u_char *packet, int offset) {
 }
 
 // puts mac addresses, ips, tcp things into packet
-int forge_packet_header(u_char packet[PACKET_SIZE]) {
+int forge_packet_header(u_char packet[PACKET_SIZE], DWORD srcIP, DWORD dstIP) {
 
 	int offset = 0; // local packet offset
 
@@ -864,7 +868,7 @@ int forge_packet_header(u_char packet[PACKET_SIZE]) {
 
 	// I actually type of ethernet frame (IPv4) put into fill_ip(), but that does not matter so much
 	// IP
-	offset = fill_ip(packet, offset, ipLenOffset, ipChkSumOffset);
+	offset = fill_ip(packet, srcIP, dstIP, offset, ipLenOffset, ipChkSumOffset);
 	if (offset == 0) {
 		printf("[!] Error in ip!\n");
 		return 0;
@@ -1062,8 +1066,6 @@ int listen_packet(pcap_t *handle) {
 		memcpy(ip, (data + sizeof(eth_header)), sizeof(ip_header));
 		memcpy(tcp, (data + sizeof(eth_header) + sizeof(ip_header)), sizeof(tcp_header));
 
-		// data is received and ever its properly put in structs, but not filtered!!!
-		printf("%x%x%x\n\n", *eth, *ip, *tcp);
 
 	}
 
