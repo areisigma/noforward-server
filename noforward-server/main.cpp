@@ -194,23 +194,35 @@ int main()
 	*/
 
 	if (type == 'C') {
+
+		/*
+		These are next operations for a client.
+		This if-block will return at the end,
+		so client won't execute server operations.
+		*/
+
+
 		char servAddr[3 * 4 + 3 + 1];
 		
 		memset(&servAddr, '\0', 3 * 4 + 3 + 1);
 
 		// "Local"
+		printf("\n[CLIENT's SERVICE]\n");
 		printf("Enter client's service address > ");
-		scanf_s("%s", servAddr, 3 * 4 + 3 + 1); inet_pton(AF_INET, servAddr, &rServ->dwLocalAddr);
+		scanf_s("%s", servAddr, 3 * 4 + 3 + 1);
+		inet_pton(AF_INET, servAddr, &rServ->dwLocalAddr);
 		printf("Enter client's service port > ");
 		scanf_s("%d", &rServ->dwLocalPort, 5);
 
 		memset(&servAddr, '\0', 3 * 4 + 3 + 1);
 
 		// "Remote"
+		printf("\n[CLIENT's NETWORK]\n");
 		printf("Enter client's address > ");
-		scanf_s("%s", servAddr, 3 * 4 + 3 + 1); inet_pton(AF_INET, servAddr, &rServ->dwRemoteAddr);
+		scanf_s("%s", servAddr, 3 * 4 + 3 + 1);
+		inet_pton(AF_INET, servAddr, &rServ->dwRemoteAddr);
 		printf("Enter client's port > ");
-		scanf_s("%d", &rServ->dwRemoteAddr, 5);
+		scanf_s("%d", &rServ->dwRemotePort, 5);
 
 		//delete servAddr;
 
@@ -230,12 +242,16 @@ int main()
 		}
 
 		printf("[+] Packet sent to: %s\n", iptos(rServ->dwRemoteAddr));
+		
+		// i have to create two threads in client for duplex communication
+
+		system("pause");
+		return 0;
 	}
 
 
 	// multithreading to handle clients
 	
-	// i have to create two threads in client for duplex communication
 
 	listen_packet(fp);
 
@@ -366,10 +382,11 @@ int show_services() {
 		lServ->dwRemoteAddr = pTcpTable->table[nService].dwRemoteAddr;
 		lServ->dwRemotePort = pTcpTable->table[nService].dwRemotePort;
 
-		printf("\n[+] %s\n", iptos(lServ->dwLocalAddr));
-		printf("[+] %d\n", htons(lServ->dwLocalPort));
-		printf("[+] %s\n", iptos(lServ->dwRemoteAddr));
-		printf("[+] %d\n\n", htons(lServ->dwRemotePort));
+		printf("\nService to listen on\n");
+		printf(" [LOCAL]\t%s\n", iptos(lServ->dwLocalAddr));
+		printf(" [LOCAL]\t%d\n", htons(lServ->dwLocalPort));
+		printf("[SERVICE]\t%s\n", iptos(lServ->dwRemoteAddr));
+		printf("[SERVICE]\t%d\n\n", htons(lServ->dwRemotePort));
 
 		FREE(pTcpTable);
 		pTcpTable = NULL;
@@ -820,9 +837,9 @@ int fill_tcp(u_char *packet, int offset, int src, int dst) {
 
 	// Maybe this will be needed, but i dont think so, because of encapsulated packet
 	// Checksum
-	packet[offset] = 0x00;
+	packet[offset] = 0x12; printf("[*] checksum: %d\n", offset);
 	offset++;
-	packet[offset] = 0x00;
+	packet[offset] = 0x34;
 	offset++;
 
 	// Urgent pointer; i do not use URG flag, so this always will be set to 0x0
@@ -881,7 +898,7 @@ int forge_packet_header(u_char packet[PACKET_SIZE], DWORD srcIP, DWORD dstIP, in
 		return 0;
 	}
 	
-	
+	printf("[*] Header size: %d\n", offset);
 
 	return 1;
 }
@@ -1015,13 +1032,16 @@ int filter_packet(const u_char *data, DWORD addr) {
 	//DWORD aAddr;
 	DWORD bAddr;
 
-	//memcpy(&aAddr, &data[26], 4); // src ip
-	memcpy(&bAddr, &data[30], 4); // dst ip
+	memcpy(&bAddr, &data[26], 4); // src ip
+	//memcpy(&bAddr, &data[30], 4); // dst ip
 
 	if (data[23] != 0x06) // is tcp
 		ret = 0;
 
 	if (bAddr != addr)
+		ret = 0;
+
+	if (data[50] != 0x12)
 		ret = 0;
 
 	/*if (aAddr == 0x0201a8c0 || bAddr == 0x0201a8c0)
@@ -1032,6 +1052,8 @@ int filter_packet(const u_char *data, DWORD addr) {
 
 // listen packets
 int listen_packet(pcap_t *handle) {
+
+	printf("\nListening...\n");
 
 	pcap_pkthdr *header;
 	const u_char *data;
@@ -1060,7 +1082,7 @@ int listen_packet(pcap_t *handle) {
 			continue;
 
 
-		printf("\n[+] Packet!\n");
+		printf("\n[+] Packet\n");
 
 		memcpy(eth, data, sizeof(eth_header));
 		memcpy(ip, (data + sizeof(eth_header)), sizeof(ip_header));
