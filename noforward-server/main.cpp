@@ -19,7 +19,7 @@
 
 int remove_null(char[]);
 int show_services();
-int forge_packet_header(u_char*, DWORD, DWORD);
+int forge_packet_header(u_char*, DWORD, DWORD, int, int);
 //char *service_filter(struct service*);
 int listen_packet(pcap_t*);
 
@@ -218,7 +218,7 @@ int main()
 		u_char packet[PACKET_SIZE];// = new u_char[1000];
 		memset(&packet, '\0', PACKET_SIZE);
 
-		if (forge_packet_header(packet, rServ->dwLocalAddr, rServ->dwRemoteAddr) == 0) {
+		if (forge_packet_header(packet, rServ->dwLocalAddr, rServ->dwRemoteAddr, rServ->dwLocalPort, rServ->dwRemotePort) == 0) {
 			printf("[!] Error while forging packet!\n");
 			return 0;
 		}
@@ -245,7 +245,7 @@ int main()
 	u_char packet[PACKET_SIZE];// = new u_char[1000];
 	memset(&packet, '\0', PACKET_SIZE);
 
-	if (forge_packet_header(packet, rServ->dwLocalAddr, rServ->dwRemoteAddr) == 0) {
+	if (forge_packet_header(packet, rServ->dwLocalAddr, rServ->dwRemoteAddr, rServ->dwLocalPort, rServ->dwRemotePort) == 0) {
 		printf("[!] Error while forging packet!\n");
 		return 0;
 	}
@@ -752,17 +752,17 @@ int fill_tcp_port(u_char *packet, int port, int offset) {
 }
 
 // handles the tcp header in packet // ADD SERVICE
-int fill_tcp(u_char *packet, int offset) {
+int fill_tcp(u_char *packet, int offset, int src, int dst) {
 
 	// Source Port
-	if (fill_tcp_port(packet, 42069, offset) == 0) { // remote port of client's service connection
+	if (fill_tcp_port(packet, src, offset) == 0) { // remote port of client's service connection
 		printf("[!] Error while filling tcp source port!\n");
 		return 0;
 	}
 	offset += 2;
 
 	// Dest Port
-	if (fill_tcp_port(packet, 42069, offset) == 0) { // local port of client's service connection
+	if (fill_tcp_port(packet, dst, offset) == 0) { // local port of client's service connection
 		printf("[!] Error while filling tcp destination port!\n");
 		return 0;
 	}
@@ -835,7 +835,7 @@ int fill_tcp(u_char *packet, int offset) {
 }
 
 // puts mac addresses, ips, tcp things into packet
-int forge_packet_header(u_char packet[PACKET_SIZE], DWORD srcIP, DWORD dstIP) {
+int forge_packet_header(u_char packet[PACKET_SIZE], DWORD srcIP, DWORD dstIP, int srcPort, int dstPort) {
 
 	int offset = 0; // local packet offset
 
@@ -875,7 +875,7 @@ int forge_packet_header(u_char packet[PACKET_SIZE], DWORD srcIP, DWORD dstIP) {
 	}
 	
 	// TCP
-	offset = fill_tcp(packet, offset);
+	offset = fill_tcp(packet, offset, srcPort, dstPort);
 	if (offset == 0) {
 		printf("[!] Error in tcp!\n");
 		return 0;
