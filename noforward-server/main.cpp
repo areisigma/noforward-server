@@ -234,15 +234,17 @@ int main()
 			printf("[!] Error while forging packet!\n");
 			return 0;
 		}
+		printf("bla\n");
+		for (int i = 0; i < 100; i++) {
+			printf("blej\n");
+			if (pcap_sendpacket(fp, packet, 55) != 0) // Size will be set for every packet, so there won't be any additional zeros
+			{
+				fprintf(stderr, "\nError sending the packet: \n", pcap_geterr(fp));
+				return 0;
+			}
 
-		if (pcap_sendpacket(fp, packet, 100) != 0) // Size will be set for every packet, so there won't be any additional zeros
-		{
-			fprintf(stderr, "\nError sending the packet: \n", pcap_geterr(fp));
-			return 0;
+			printf("[+] Packet sent to: %s\n", iptos(rServ->dwRemoteAddr));
 		}
-
-		printf("[+] Packet sent to: %s\n", iptos(rServ->dwRemoteAddr));
-		
 		// i have to create two threads in client for duplex communication
 
 		system("pause");
@@ -832,7 +834,7 @@ int fill_tcp(u_char *packet, int offset, int src, int dst) {
 	// Window Size; size of receive data (whatever that means)
 	packet[offset] = 0x00;
 	offset++;
-	packet[offset] = 0x00;
+	packet[offset] = 0x01;
 	offset++;
 
 	// Maybe this will be needed, but i dont think so, because of encapsulated packet
@@ -897,6 +899,8 @@ int forge_packet_header(u_char packet[PACKET_SIZE], DWORD srcIP, DWORD dstIP, in
 		printf("[!] Error in tcp!\n");
 		return 0;
 	}
+
+	packet[offset] = 0x69;
 	
 	printf("[*] Header size: %d\n", offset);
 
