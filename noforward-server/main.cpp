@@ -15,7 +15,7 @@
 #define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x))
 #define FREE(x) HeapFree(GetProcessHeap(), 0, (x))
 #define ADDR_SIZE 128
-#define PACKET_SIZE 1000
+#define PACKET_SIZE 1024
 
 int remove_null(char[]);
 int show_services();
@@ -123,13 +123,13 @@ int main()
 		printf("Server/Client [S/C] > ");
 		scanf_s("%c", &type);
 
-		if (type != 'S' && type != 'C') {
+		if (type != 'S' && type != 'C' && type != 's' && type != 'c') {
 
 			printf("\n[!] Please type S or C\n");
 			continue;
 		}
 
-		printf("[+] %s\n", type == 'S' ? "Server" : "Client");
+		printf("\n[+] %s\n", (type == 'S') || (type == 's') ? "Server" : "Client");
 		break;
 	}
 
@@ -227,17 +227,39 @@ int main()
 		//delete servAddr;
 
 
-		u_char packet[PACKET_SIZE];// = new u_char[1000];
+		//ICMP :u_char packet[PACKET_SIZE] = "\x4c\x34\x88\x29\xa3\x1f\xd8\xbb\xc1\x52\x39\x3e\x08\x00\x45\x00\x00\x3c\xd7\x94\x00\x00\x80\x01\x00\x00\xc0\xa8\x01\x4d\xc0\xa8\x01\xf0\x08\x00\x4d\x4d\x00\x01\x00\x0e\x61\x62\x63\x64\x65\x66\x67\x68\x69\x6a\x6b\x6c\x6d\x6e\x6f\x70\x71\x72\x73\x74\x75\x76\x77\x61\x62\x63\x64\x65\x66\x67\x68\x69";// = new u_char[1000];
+		u_char packet[PACKET_SIZE];
 		memset(&packet, '\0', PACKET_SIZE);
 
-		if (forge_packet_header(packet, rServ->dwLocalAddr, rServ->dwRemoteAddr, rServ->dwLocalPort, rServ->dwRemotePort) == 0) {
+		int szHeader = 0;
+
+		/*
+		There's a big shit goin on here.
+		I cannot let seq and ack numbers be zero
+		or whatever else, it has to be correct.
+		However I have an idea: I could create fake
+		TCP connection, but then server would have to
+		help client in it, by sending a SYN/ACK packet
+		to client with this fake server IP. Then propably
+		a new connection will exist.
+		I don't know if this idea is absolutely correct.
+		I should spend some time refactoring this whole code.
+		It's getting really messy in here.
+		*/
+
+		if ((szHeader = forge_packet_header(packet, rServ->dwLocalAddr, rServ->dwRemoteAddr, rServ->dwLocalPort, rServ->dwRemotePort)) == 0) {
 			printf("[!] Error while forging packet!\n");
 			return 0;
 		}
-		printf("bla\n");
-		for (int i = 0; i < 100; i++) {
-			printf("blej\n");
-			if (pcap_sendpacket(fp, packet, 55) != 0) // Size will be set for every packet, so there won't be any additional zeros
+
+		// fill rest of a packet
+		for (int i = szHeader; i < PACKET_SIZE; i++) {
+			packet[i] = 0x69;
+		}
+
+		
+		for (int i = 0; i < 1; i++) {
+			if (pcap_sendpacket(fp, packet, PACKET_SIZE) != 0) // Size will be set for every packet, so there won't be any additional zeros
 			{
 				fprintf(stderr, "\nError sending the packet: \n", pcap_geterr(fp));
 				return 0;
@@ -708,9 +730,9 @@ int fill_ip(u_char *packet, DWORD src, DWORD dst, int offset, int ipLenOffset, i
 	offset++;
 
 	// 2 bytes of total length, fill later
-	packet[offset] = 0x00; ipLenOffset = offset;
+	packet[offset] = 0x03; ipLenOffset = offset;
 	offset++;
-	packet[offset] = 0x00;
+	packet[offset] = 0xf2;
 	offset++;
 
 	// IP identifier
@@ -794,23 +816,23 @@ int fill_tcp(u_char *packet, int offset, int src, int dst) {
 	that does this for me.
 	*/
 	// Sequence number
-	packet[offset] = 0x00;
+	packet[offset] = 0x10;
 	offset++;
 	packet[offset] = 0x00;
 	offset++;
 	packet[offset] = 0x00;
 	offset++;
-	packet[offset] = 0x00;
+	packet[offset] = 0x01;
 	offset++;
 
 	// Acknowledge number
-	packet[offset] = 0x00;
+	packet[offset] = 0x10;
 	offset++;
 	packet[offset] = 0x00;
 	offset++;
 	packet[offset] = 0x00;
 	offset++;
-	packet[offset] = 0x00;
+	packet[offset] = 0x01;
 	offset++;
 
 	// Data offset and reserved bits; it's mostly 0x50 and sometimes 0x80
@@ -818,17 +840,17 @@ int fill_tcp(u_char *packet, int offset, int src, int dst) {
 	offset++;
 
 	// Flags
-	/*packet[offset] = 0x00000000 | // Nonce							0x00000000
-					 0x00000000 | // Congestion Window Reduced (CWR)	0x10000000
-					 0x00000000 | // ECN-Echo							0x01000000
-					 0x00000000 | // Urgent							0x00100000
-					 0x00010000 | // Ack								0x00010000
-					 0x00000000 | // Push								0x00001000
-					 0x00000000 | // Reset								0x00000100
-					 0x00000010 | // Syn								0x00000010
-					 0x00000000;   // Fin								0x00000001*/
-	//packet[offset] = 0x12; // SYN, ACK
-	packet[offset] = 0x10; // ACK
+	/*packet[offset] =	0b00000000 | // Nonce								0b00000000
+						0b00000000 | // Congestion Window Reduced (CWR)		0b10000000
+						0b00000000 | // ECN-Echo							0b01000000
+						0b00000000 | // Urgent								0b00100000
+						0b00010000 | // Ack									0b00010000
+						0b00000000 | // Push								0b00001000
+						0b00000000 | // Reset								0b00000100
+						0b00000010 | // Syn									0b00000010
+						0b00000000;   // Fin								0b00000001*/
+	packet[offset] = 0x12; // SYN, ACK
+	//packet[offset] = 0x10; // ACK
 	offset++;
 
 	// Window Size; size of receive data (whatever that means)
@@ -900,11 +922,10 @@ int forge_packet_header(u_char packet[PACKET_SIZE], DWORD srcIP, DWORD dstIP, in
 		return 0;
 	}
 
-	packet[offset] = 0x69;
-	
+
 	printf("[*] Header size: %d\n", offset);
 
-	return 1;
+	return offset;
 }
 
 // load npcap dlls
@@ -1086,12 +1107,11 @@ int listen_packet(pcap_t *handle) {
 			continue;
 
 
-		printf("\n[+] Packet\n");
-
 		memcpy(eth, data, sizeof(eth_header));
 		memcpy(ip, (data + sizeof(eth_header)), sizeof(ip_header));
 		memcpy(tcp, (data + sizeof(eth_header) + sizeof(ip_header)), sizeof(tcp_header));
 
+		printf("[+] Packet caught from: %d.%d.%d.%d\n", ip->src[0], ip->src[1], ip->src[2], ip->src[3]);
 
 	}
 
