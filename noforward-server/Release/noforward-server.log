@@ -1,8 +1,39 @@
 ﻿  main.cpp
 c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1047): warning C4477: „printf”: ciąg formatu „%d” wymaga argumentu typu „int”, ale argument 2 ze zmienną liczbą argumentów ma typ „std::thread::id”
-  Trwa generowanie kodu
-  1 of 154 functions ( 0.6%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    0 functions had inline decision re-evaluated but remain unchanged
-  Zakończono generowanie kodu
-  noforward-server.vcxproj -> C:\Users\olaf\Documents\noforward-server\Release\noforward-server.exe
+c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.16.27023\include\thr\xthread(238): error C2672: „std::invoke”: nie znaleziono zgodnej przeciążonej funkcji
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.16.27023\include\thr\xthread(246): note: zobacz odwołanie do funkcji szablon; wystąpienie „void std::_LaunchPad<_Target>::_Execute<0,1,2,3>(std::tuple<int (__cdecl *)(std::thread [],int *,client *),std::thread *,int *,client (*)[64]> &,std::integer_sequence<unsigned int,0,1,2,3>)” jest kompilowane
+          with
+          [
+              _Target=std::unique_ptr<std::tuple<int (__cdecl *)(std::thread [],int *,client *),std::thread *,int *,client (*)[64]>,std::default_delete<std::tuple<int (__cdecl *)(std::thread [],int *,client *),std::thread *,int *,client (*)[64]>>>
+          ]
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.16.27023\include\thr\xthread(245): note: zobacz odwołanie do funkcji szablon; wystąpienie „void std::_LaunchPad<_Target>::_Execute<0,1,2,3>(std::tuple<int (__cdecl *)(std::thread [],int *,client *),std::thread *,int *,client (*)[64]> &,std::integer_sequence<unsigned int,0,1,2,3>)” jest kompilowane
+          with
+          [
+              _Target=std::unique_ptr<std::tuple<int (__cdecl *)(std::thread [],int *,client *),std::thread *,int *,client (*)[64]>,std::default_delete<std::tuple<int (__cdecl *)(std::thread [],int *,client *),std::thread *,int *,client (*)[64]>>>
+          ]
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.16.27023\include\thr\xthread(242): note: podczas kompilowania funkcji składowej „<Nieznany>” klasy klasa <Nieznany>
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.16.27023\include\thr\xthread(230): note: zobacz odwołanie do funkcji szablon; wystąpienie „void std::_LaunchPad<_Target>::_Run(std::_LaunchPad<_Target> *) noexcept” jest kompilowane
+          with
+          [
+              _Target=std::unique_ptr<std::tuple<int (__cdecl *)(std::thread [],int *,client *),std::thread *,int *,client (*)[64]>,std::default_delete<std::tuple<int (__cdecl *)(std::thread [],int *,client *),std::thread *,int *,client (*)[64]>>>
+          ]
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.16.27023\include\thr\xthread(257): note: zobacz odwołanie do klasy klasa szablon; wystąpienie „std::_LaunchPad<_Target>” jest kompilowane
+          with
+          [
+              _Target=std::unique_ptr<std::tuple<int (__cdecl *)(std::thread [],int *,client *),std::thread *,int *,client (*)[64]>,std::default_delete<std::tuple<int (__cdecl *)(std::thread [],int *,client *),std::thread *,int *,client (*)[64]>>>
+          ]
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.16.27023\include\thread(46): note: zobacz odwołanie do funkcji szablon; wystąpienie „void std::_Launch<std::unique_ptr<std::tuple<int (__cdecl *)(std::thread [],int *,client *),std::thread *,int *,client (*)[64]>,std::default_delete<_Ty>>>(_Thrd_t *,_Target &&)” jest kompilowane
+          with
+          [
+              _Ty=std::tuple<int (__cdecl *)(std::thread [],int *,client *),std::thread *,int *,client (*)[64]>,
+              _Target=std::unique_ptr<std::tuple<int (__cdecl *)(std::thread [],int *,client *),std::thread *,int *,client (*)[64]>,std::default_delete<std::tuple<int (__cdecl *)(std::thread [],int *,client *),std::thread *,int *,client (*)[64]>>>
+          ]
+  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1214): note: zobacz odwołanie do funkcji szablon; wystąpienie „std::thread::thread<int(__cdecl &)(std::thread [],int *,client *),std::thread(&)[32],int*&,client(*)[64],void>(_Fn,std::thread (&)[32],int *&,client (*&&)[64])” jest kompilowane
+          with
+          [
+              _Fn=int (__cdecl &)(std::thread [],int *,client *)
+          ]
+c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.16.27023\include\thr\xthread(237): error C2893: Nie powiodła się specjalizacja szablonu funkcji 'unknown-type std::invoke(_Callable &&,_Types &&...) noexcept(<expr>)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.16.27023\include\thr\xthread(237): note: Z następującymi argumentami szablonu:
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.16.27023\include\thr\xthread(237): note: "_Callable=int (__cdecl *)(std::thread [],int *,client *)"
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.16.27023\include\thr\xthread(237): note: "_Types={std::thread *, int *, client (*)[64]}"

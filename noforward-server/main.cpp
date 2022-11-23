@@ -1020,7 +1020,7 @@ namespace Terminal {
 		return 1;
 	}
 
-	int thread_manager(std::thread threads[MAX_THREADS], int *attr) {
+	int thread_manager(std::thread threads[MAX_THREADS], int *attr, client *clients) {
 
 		//printf("Thread Manager Started!\n");
 
@@ -1050,6 +1050,14 @@ namespace Terminal {
 				attr[1] = 0;
 			}
 
+			// start client
+			if (attr[2] > 0) {
+				int id = attr[2] - 2; // id of client
+
+
+				attr[2] = 0;
+				break;
+			}
 		}
 
 		return 1;
@@ -1068,7 +1076,7 @@ namespace Terminal {
 
 		cli->status = 0; // offline by default
 
-		printf("\tname (max 16, no spaces) > ");
+		printf("\tname > ");
 		scanf_s("%s", buf, 16);
 		memcpy(cli->name, &buf, 16);
 
@@ -1078,7 +1086,7 @@ namespace Terminal {
 
 		memset(&servAddr, '\0', 3 * 4 + 3 + 1);*/
 		
-		printf("\n\tip > ");
+		printf("\tip > ");
 		scanf_s("%s", buf, 3 * 4 + 3 + 1);
 		inet_pton(AF_INET, buf, &cli->dstIp);
 
@@ -1110,7 +1118,7 @@ namespace Terminal {
 
 	int stop_client(pcap_t* fp, client *cli) {
 
-
+		cli->status = 0;
 
 		return 1;
 	}
@@ -1139,8 +1147,11 @@ int main()
 	// threads
 	std::thread threads[MAX_THREADS]; //threads[n] = std::thread(func, params);
 	int *manager = new int[MANAGER_ATTR];
-	/*int *managerExit = new int; *managerExit = 0;
-	int *managerShow = new int; *managerShow = 0;*/
+	/*
+	0 - exit
+	1 - show
+	2 - manager[2] - 2 = client_id
+	*/
 
 
 	SetConsoleTitleW(L"NoForward [0.0.1]");
@@ -1200,7 +1211,7 @@ int main()
 
 	#pragma region terminal
 
-	threads[0] = std::thread(Terminal::thread_manager, threads, manager);
+	threads[0] = std::thread(Terminal::thread_manager, threads, manager, &clients); // manager
 
 	while (1) {
 
@@ -1292,7 +1303,7 @@ int main()
 
 				int n = atoi(input);
 
-				cli = &clients[n];
+				cli = &clients[n-1];
 
 				if (n > clientCount || n < 0) {
 					printf("Client id out of bound!\n");
@@ -1316,7 +1327,7 @@ int main()
 
 				int n = atoi(input);
 
-				cli = &clients[n];
+				cli = &clients[n-1];
 
 				if (n > clientCount || n < 0) {
 					printf("Client id out of bound!\n");
