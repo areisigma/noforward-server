@@ -22,7 +22,7 @@
 #define MAX_CLIENTS		64
 #define MAX_INPUT		32
 #define MAX_THREADS		32
-#define MANAGER_ATTR	8
+//#define MANAGER_ATTR	8
 
 /*int remove_null(char[]);
 int show_services();
@@ -91,13 +91,25 @@ typedef struct client {
 	int id;
 	char name[16];
 	int status;
-	//DWORD srcIp; // this won't be used wtf, i can fill it myself; user don't have to bother about this
+	DWORD srcIp; // this won't be used wtf, i can fill it myself; user don't have to bother about this
 	DWORD dstIp;
 	//DWORD srcPort; // ports neither, it could be always 42069
 	//DWORD dstPort;
 	u_int seq;
 	u_int ack;
 }client;
+
+typedef struct ipPacket {
+	DWORD src;
+	DWORD dst;
+}ipp;
+
+typedef struct tcpPacket {
+	u_short src; // source port
+	u_short dst; // dest port
+	u_int seq;
+	u_int ack;
+}tcpp;
 
 // netstat -aon | findstr <port>
 // tasklist /svc /FI "PID eq <pid from netstat>"
@@ -344,6 +356,24 @@ namespace Helper {
 	}
 
 
+	// get ip of a interface
+	DWORD get_if_ip(pcap_if_t *d) {
+		pcap_addr_t *a;
+
+		DWORD ip;
+
+		for (a = d->addresses; a; a = a->next) {
+			switch (a->addr->sa_family) {
+			case AF_INET:
+				if (a->addr)
+					ip = ((struct sockaddr_in *)a->addr)->sin_addr.s_addr;
+			}
+		}
+
+		return ip;
+	}
+
+
 	// prints error
 	int print_arp_error(int ret) {
 
@@ -550,10 +580,10 @@ namespace Helper {
 
 
 	// sends ARP to router to gather it's mac address
-	int find_router_mac(pcap_if_t *d, u_char out[6]) {
+	int find_router_mac(DWORD addr, u_char out[6]) {
 
 		DWORD rAddr = 0; // router address
-		DWORD addr = ((struct sockaddr_in *)d->addresses->addr)->sin_addr.s_addr;
+		//DWORD addr = ((struct sockaddr_in *)d->addresses->addr)->sin_addr.s_addr;
 		char dtAddr[15]; // dotted router ip address
 		in_addr *rAddrStruct = new in_addr; // struct of router address
 		u_char mac[6];
@@ -773,7 +803,7 @@ namespace Helper {
 
 
 	// handles the tcp header in packet
-	int fill_tcp(u_char *packet, int offset, int src, int dst) {
+	int fill_tcp(u_char *packet, int offset, int src, int dst, int flag) {
 
 		// Source Port
 		if (fill_tcp_port(packet, src, offset) == 0) { // remote port of client's service connection
@@ -821,15 +851,15 @@ namespace Helper {
 
 		// Flags
 		/*packet[offset] =	0b00000000 | // Nonce								0b00000000
-							0b00000000 | // Congestion Window Reduced (CWR)		0b10000000
-							0b00000000 | // ECN-Echo							0b01000000
-							0b00000000 | // Urgent								0b00100000
-							0b00010000 | // Ack									0b00010000
-							0b00000000 | // Push								0b00001000
-							0b00000000 | // Reset								0b00000100
-							0b00000010 | // Syn									0b00000010
-							0b00000000;   // Fin								0b00000001*/
-		packet[offset] = 0x12; // SYN, ACK
+							0b00000000 | // Congestion Window Reduced (CWR)		0b10000000 128
+							0b00000000 | // ECN-Echo							0b01000000 64
+							0b00000000 | // Urgent								0b00100000 32
+							0b00010000 | // Ack									0b00010000 16
+							0b00000000 | // Push								0b00001000 8
+							0b00000000 | // Reset								0b00000100 4
+							0b00000010 | // Syn									0b00000010 2
+							0b00000000;   // Fin								0b00000001 1*/
+		packet[offset] = flag; // SYN, ACK
 		//packet[offset] = 0x10; // ACK
 		offset++;
 
@@ -856,21 +886,81 @@ namespace Helper {
 	}
 
 
+	// shows running threads
+	int showThreads(std::thread *threads) {
+		for (int i = 0; i < MAX_THREADS; i++) {
+			std::thread::id id = threads[i].get_id();
+			std::thread::id no; // just a 0
+
+			if (id == no)
+				continue;
+
+			printf("\tThread %d id: %d\n", i, id);
+		}
+
+		return 1;
+	}
+
+
+	/*int getRunningThreads(std::thread *threads, int running[MAX_THREADS]) {
+			memset(&running, '\0', MAX_THREADS);
+			for (int i = 0; i < MAX_THREADS; i++) {
+				std::thread::id id = threads[i].get_id();
+				std::thread::id no; // just a 0
+
+				if (id == no)
+					continue;
+
+				//printf("\tThread %d id: %d\n", i, id);
+				running[i] = 1;
+			}
+
+			return 1;
+		}*/
+
+
+	// join all running threads
+	int joinThreads(std::thread *threads) {
+
+		printf("Joining threads\n");
+
+		for (int i = 0; i < MAX_THREADS; i++) {
+
+			std::thread::id no;
+
+			if (threads[i].get_id() == no)
+				continue;
+
+			threads[i].join();
+		}
+		printf("\n");
+
+		return 1;
+	}
+
 }
 
 namespace Transmitter {
 
 	// puts mac addresses, ips, tcp things into packet
-	int forge_packet_header(pcap_if_t *d, u_char packet[PACKET_SIZE], DWORD srcIP, DWORD dstIP, int srcPort, int dstPort) {
+	int forge_packet_header(pcap_if_t *d, u_char packet[PACKET_SIZE], ipp ip, tcpp tcp, int flag) {
 
 		int offset = 0; // local packet offset
+
+		DWORD srcIP = ip.src;
+		DWORD dstIP = ip.dst;
+		int srcPort = tcp.src;
+		int dstPort = tcp.dst;
+		u_int ack = tcp.ack;
+		u_int seq = tcp.seq;
+
 
 		// MAC variables
 		u_char srcMac[6];
 		u_char dstMac[6];
 
 		// IP variables
-		int ipLenOffset = 0;
+		int ipLenOffset = 0; // they are output from fill_ip()
 		int ipChkSumOffset = 0;
 
 		//TCP variables
@@ -886,7 +976,7 @@ namespace Transmitter {
 		Helper::fill_mac(packet, srcMac, "Source", offset); offset += 6;
 
 		// same thing with router's mac
-		if (Helper::find_router_mac(d, dstMac) == 0) {
+		if (Helper::find_router_mac(srcIP, dstMac) == 0) {
 			printf("[!] Error while finding router mac!\n");
 			return 0;
 		}
@@ -901,7 +991,7 @@ namespace Transmitter {
 		}
 
 		// TCP
-		offset = Helper::fill_tcp(packet, offset, srcPort, dstPort);
+		offset = Helper::fill_tcp(packet, offset, srcPort, dstPort, flag);
 		if (offset == 0) {
 			printf("[!] Error in tcp!\n");
 			return 0;
@@ -913,6 +1003,18 @@ namespace Transmitter {
 		return offset;
 	}
 
+
+	// send packet
+	int send(pcap_t *fp, u_char packet[PACKET_SIZE], int size) {
+
+		if (pcap_sendpacket(fp, packet, size) != 0)
+		{
+			fprintf(stderr, "\nError sending the packet: \n", pcap_geterr(fp));
+			return 0;
+		}
+
+		return 1;
+	}
 }
 
 namespace Receiver {
@@ -1020,7 +1122,7 @@ namespace Terminal {
 		return 1;
 	}
 
-	int thread_manager(std::thread threads[MAX_THREADS], int *attr, client *clients) {
+	/*int thread_manager(std::thread threads[MAX_THREADS], int *attr, client *clients) {
 
 		//printf("Thread Manager Started!\n");
 
@@ -1031,6 +1133,11 @@ namespace Terminal {
 			// exit
 			if (attr[0] == 1) {
 				printf("Exiting thread manager\n");
+
+				for (int i = 1; i < MAX_THREADS; i++) {
+					threads[i].join();
+				}
+
 				break;
 			}
 
@@ -1061,7 +1168,7 @@ namespace Terminal {
 		}
 
 		return 1;
-	}
+	}*/
 
 	int add_client(char *input, client *cli) {
 
@@ -1079,12 +1186,6 @@ namespace Terminal {
 		printf("\tname > ");
 		scanf_s("%s", buf, 16);
 		memcpy(cli->name, &buf, 16);
-
-		/*printf("\tLocal IP > ");
-		scanf_s("%s", servAddr, 3 * 4 + 3 + 1);
-		inet_pton(AF_INET, servAddr, &cli->srcIp);
-
-		memset(&servAddr, '\0', 3 * 4 + 3 + 1);*/
 		
 		printf("\tip > ");
 		scanf_s("%s", buf, 3 * 4 + 3 + 1);
@@ -1109,9 +1210,73 @@ namespace Terminal {
 		return 1;
 	}
 
-	int start_client(pcap_t* fp, client *cli) {
+	int start_client(pcap_if_t *d, pcap_t* fp, client *cli) {
+
+
+		u_char packet[PACKET_SIZE];
+		int szHeader = 0;
+
+		int flag = 0; // SYN (2) ; ACK (16) ; SYN/ACK (18)
+
+		ipp ip;
+		tcpp tcp;
+
+		ip.src = cli->srcIp;//((struct sockaddr_in *)d->addresses->addr)->sin_addr.s_addr;
+		ip.dst = cli->dstIp;
+		tcp.src = 42069;
+		tcp.dst = 42069;
+		tcp.ack = 0;
+		tcp.seq = 0;
+
+		flag = 2; // SYN
+		if ((szHeader = Transmitter::forge_packet_header(d, packet, ip, tcp, flag)) == 0) {
+			printf("[!] Error while forging packet!\n");
+			return 0;
+		}
+
+		Sleep(2000);
+
+		flag = 18; // SYN/ACK
+		if ((szHeader = Transmitter::forge_packet_header(d, packet, ip, tcp, flag)) == 0) {
+			printf("[!] Error while forging packet!\n");
+			return 0;
+		}
+
+		if (!Transmitter::send(fp, packet, szHeader)) {
+			return 0;
+		}
 
 		cli->status = 1;
+
+		return 1;
+	}
+
+	int listen_client(pcap_if_t *d, pcap_t* fp, client *cli) {
+
+		u_char packet[PACKET_SIZE];
+		int szHeader = 0;
+
+		int flag = 0; // SYN (2) ; ACK (16) ; SYN/ACK (18)
+
+		ipp ip;
+		tcpp tcp;
+
+		ip.src = cli->srcIp;//((struct sockaddr_in *)d->addresses->addr)->sin_addr.s_addr;
+		ip.dst = cli->dstIp;
+		tcp.src = 42069;
+		tcp.dst = 42069;
+		tcp.ack = 0;
+		tcp.seq = 0;
+
+		flag = 16; // ACK
+		if ((szHeader = Transmitter::forge_packet_header(d, packet, ip, tcp, flag)) == 0) {
+			printf("[!] Error while forging packet!\n");
+			return 0;
+		}
+
+		if (!Transmitter::send(fp, packet, szHeader)) {
+			return 0;
+		}
 
 		return 1;
 	}
@@ -1140,13 +1305,14 @@ int main()
 
 	// terminal
 	char *input = new char[MAX_INPUT];
+	DWORD local;
 	client *cli = new client;
 	client clients[MAX_CLIENTS];
 	int clientCount = 0;
 
 	// threads
 	std::thread threads[MAX_THREADS]; //threads[n] = std::thread(func, params);
-	int *manager = new int[MANAGER_ATTR];
+	//int *manager = new int[MANAGER_ATTR];
 	/*
 	0 - exit
 	1 - show
@@ -1156,7 +1322,7 @@ int main()
 
 	SetConsoleTitleW(L"NoForward [0.0.1]");
 
-	memset(manager, '\0', MANAGER_ATTR);
+	//memset(manager, '\0', MANAGER_ATTR);
 
 	Helper::loadDlls();
 
@@ -1178,7 +1344,7 @@ int main()
 
 	while (true) {
 		printf("\nChoose internet adapter in use > ");
-		scanf_s("%d", &nDev); // normally delete the commentation
+		scanf_s("%d", &nDev);
 		//nDev = 5;
 
 		if (nDev <= nDevs)
@@ -1192,6 +1358,8 @@ int main()
 	{
 		d = d->next;
 	}
+
+	local = Helper::get_if_ip(d);
 
 	pcap_freealldevs(alldevs); // free alldevs, it's no longer in use
 
@@ -1211,12 +1379,12 @@ int main()
 
 	#pragma region terminal
 
-	threads[0] = std::thread(Terminal::thread_manager, threads, manager, &clients); // manager
+	//threads[0] = std::thread(Terminal::thread_manager, threads, manager, &clients); // manager
 
 	while (1) {
 
-		if (manager[1] != 0)
-			continue;
+		//if (manager[1] != 0)
+		//	continue;
 
 		printf("> ");
 
@@ -1236,7 +1404,7 @@ int main()
 		// threads show
 		
 		if (Helper::compare_string(input, (char *)"exit")) {
-			manager[0] = 1;
+			//manager[0] = 1;
 			break;
 		}
 
@@ -1293,6 +1461,7 @@ int main()
 					continue;
 				}
 				Terminal::add_client(input, cli);
+				cli->srcIp = local;
 				clients[clientCount] = *cli;
 				clientCount++;
 				continue;
@@ -1315,8 +1484,32 @@ int main()
 					continue;
 				}
 
+				// start an algorithm to open a tunnel with remote host
+				threads[n] = std::thread(Terminal::start_client, d, fp, cli);
 
-				threads[n] = std::thread(Terminal::start_client, fp, cli);
+				continue;
+
+			}
+
+			if (Helper::compare_string(input, (char *)"listen")) {
+				scanf_s("%s", input, MAX_INPUT);
+
+				int n = atoi(input);
+
+				cli = &clients[n - 1];
+
+				if (n > clientCount || n < 0) {
+					printf("Client id out of bound!\n");
+					continue;
+				}
+
+				if (cli->status == 1) {
+					printf("Client is already online\n");
+					continue;
+				}
+
+				// start an algorithm to open a tunnel with remote host
+				threads[n] = std::thread(Terminal::start_client, d, fp, cli);
 
 				continue;
 
@@ -1341,6 +1534,8 @@ int main()
 
 
 				threads[n].join();
+				// start an algorithm to close connection(clear record in router's NAT)
+				// or maybe the connection will be closed by program that's using the tunnel
 
 				continue;
 			}
@@ -1352,7 +1547,8 @@ int main()
 			scanf_s("%s", input, MAX_INPUT);
 
 			if (Helper::compare_string(input, (char *)"show")) {
-				manager[1] = 1;
+				//manager[1] = 1;
+				Helper::showThreads(threads);
 				continue;
 			}
 		}
@@ -1364,14 +1560,10 @@ int main()
 	#pragma endregion
 
 
+	Helper::joinThreads(threads);
 
 	delete input;
 	delete cli;
-	delete manager;
-	/*delete managerExit;
-	delete managerShow;*/
-
-	threads[0].join(); // thread manager
 
 	return 0;
 }
