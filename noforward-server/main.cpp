@@ -1509,7 +1509,7 @@ int main()
 				}
 
 				// start an algorithm to open a tunnel with remote host
-				threads[n] = std::thread(Terminal::start_client, d, fp, cli);
+				threads[n] = std::thread(Terminal::listen_client, d, fp, cli);
 
 				continue;
 
