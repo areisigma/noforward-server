@@ -22,30 +22,6 @@
 #define MAX_CLIENTS		64
 #define MAX_INPUT		32
 #define MAX_THREADS		32
-//#define MANAGER_ATTR	8
-
-/*int remove_null(char[]);
-int show_services();
-int forge_packet_header(u_char*, DWORD, DWORD, int, int);
-int listen_packet(pcap_t*);
-
-BOOL LoadNpcapDlls();
-void ifprint(pcap_if_t*);
-char *iptos(u_long);
-char *iptos(u_long, bool);*/
-
-// services
-//PMIB_TCPTABLE pTcpTable;
-//DWORD dwSize = 0;
-//DWORD dwRetVal = 0;
-
-// for show_services() purpose
-//struct in_addr IpAddr;
-//char szLocalAddr[ADDR_SIZE];
-//char szRemoteAddr[ADDR_SIZE];
-//u_int nServices;
-//u_int nService;
-
 
 typedef struct eth_header {
 	u_char srcMac[6];
@@ -93,8 +69,8 @@ typedef struct client {
 	int status;
 	DWORD srcIp; // this won't be used wtf, i can fill it myself; user don't have to bother about this
 	DWORD dstIp;
-	//DWORD srcPort; // ports neither, it could be always 42069
-	//DWORD dstPort;
+	DWORD srcPort;
+	DWORD dstPort;
 	u_int seq;
 	u_int ack;
 }client;
@@ -210,7 +186,7 @@ namespace Helper {
 		for (int i = 0; i < size; i++)
 		{
 			if (*a != *b) {
-				printf("Unknown command. Type \"help\" to show available commands.\n");
+				//printf("Unknown command. Type \"help\" to show available commands.\n");
 				return 0;
 			}
 
@@ -268,16 +244,6 @@ namespace Helper {
 			if (*pc != *ic)
 				return *ic - *pc;
 		}
-	}
-
-
-	// parser
-	int parse(char *str) {
-
-		// use scanf!!! it can easly parse me a string, by separating it by spaces
-		// but how do i know how much spaces there are?
-
-		return 1;
 	}
 
 
@@ -902,23 +868,6 @@ namespace Helper {
 	}
 
 
-	/*int getRunningThreads(std::thread *threads, int running[MAX_THREADS]) {
-			memset(&running, '\0', MAX_THREADS);
-			for (int i = 0; i < MAX_THREADS; i++) {
-				std::thread::id id = threads[i].get_id();
-				std::thread::id no; // just a 0
-
-				if (id == no)
-					continue;
-
-				//printf("\tThread %d id: %d\n", i, id);
-				running[i] = 1;
-			}
-
-			return 1;
-		}*/
-
-
 	// join all running threads
 	int joinThreads(std::thread *threads) {
 
@@ -1019,7 +968,7 @@ namespace Transmitter {
 
 namespace Receiver {
 
-	// filter packets with wrong address
+	// passes a packet if it has TCP Layer and if address is matching in IP header
 	int filter_packet(const u_char *data, DWORD addr) {
 
 		int ret = 1;
@@ -1044,7 +993,7 @@ namespace Receiver {
 		return ret;
 	}
 
-	// listen packets on handle
+	// loop; listening a packet
 	int listen_packet(pcap_t *handle, struct service *sLocal) {
 
 		printf("\nListening...\n");
@@ -1122,53 +1071,42 @@ namespace Terminal {
 		return 1;
 	}
 
-	/*int thread_manager(std::thread threads[MAX_THREADS], int *attr, client *clients) {
+	int read_stdin(char input[MAX_INPUT]) {
+		//char line[MAX_INPUT];
+		int c, line_length = 0;
 
-		//printf("Thread Manager Started!\n");
+		while ((c = getchar()) != '\n' && line_length < MAX_INPUT - 1) {
 
-		while (1) {
+			input[line_length] = c;
+			line_length++;
+		}
 
-			Sleep(50);
+		input[line_length] = 0;
 
-			// exit
-			if (attr[0] == 1) {
-				printf("Exiting thread manager\n");
+		return 1;
+	}
 
-				for (int i = 1; i < MAX_THREADS; i++) {
-					threads[i].join();
-				}
+	int parse(char input[MAX_INPUT], char parsed[MAX_INPUT][MAX_INPUT]) {
 
+		int last_space = 0;
+		int words = 0; // words in parsed
+		int word_length = 0;
+
+		for (int i = 0; i < MAX_INPUT; i++) { // loop for whole input
+
+
+			if (input[i] == ' ' || input[i] == '\0') {
+				memcpy(parsed[words], input + last_space, i);
+				last_space = i;
+				words++;
+			}
+
+			if (input[i] == '\0')
 				break;
-			}
-
-			// show
-			if (attr[1] == 1) {
-				for (int i = 0; i < MAX_THREADS; i++) {
-					std::thread::id id = threads[i].get_id();
-					std::thread::id no;
-
-					if (id == no) {
-						continue;
-					}
-
-					printf("\tThread %d id: %d\n", i, id);
-				}
-
-				attr[1] = 0;
-			}
-
-			// start client
-			if (attr[2] > 0) {
-				int id = attr[2] - 2; // id of client
-
-
-				attr[2] = 0;
-				break;
-			}
 		}
 
 		return 1;
-	}*/
+	}
 
 	int add_client(char *input, client *cli) {
 
@@ -1311,20 +1249,13 @@ int main()
 	int clientCount = 0;
 
 	// threads
-	std::thread threads[MAX_THREADS]; //threads[n] = std::thread(func, params);
-	//int *manager = new int[MANAGER_ATTR];
-	/*
-	0 - exit
-	1 - show
-	2 - manager[2] - 2 = client_id
-	*/
+	std::thread threads[MAX_THREADS];
 
 
 	SetConsoleTitleW(L"NoForward [0.0.1]");
 
-	//memset(manager, '\0', MANAGER_ATTR);
-
 	Helper::loadDlls();
+
 
 	
 	#pragma region device
@@ -1377,6 +1308,181 @@ int main()
 	
 	#pragma endregion
 
+	#pragma region terminal
+
+	/// commands
+		// exit
+		// help
+		// conn add
+		// conn show all
+		// conn show <id>
+		// client edit <id> // not done
+		// client remove <id> // not done
+		// conn start <id>
+		// conn stop <id>
+		// threads show // propably gonna remove it
+
+
+	Terminal::read_stdin(input);
+	while (1) {
+
+		printf("> ");
+		
+		Terminal::read_stdin(input);
+
+
+		if (Helper::compare_string(input, (char *)"exit")) {
+			break;
+		}
+
+		if (Helper::compare_string(input, (char *)"help")) {
+			Terminal::help();
+			continue;
+		}
+
+		// i have to put conn show all/<id> into one if statement and parse it,
+		// otherwise conn show <id> is aborted due to compare_string() failes with comparing shorter string with longer (as i thought it would not be a problem)
+
+		if (Helper::compare_string(input, (char *)"conn show all")) {
+
+			if (clientCount <= 0) {
+				printf("No clients added! Add them with \"client add\".\n");
+				continue;
+			}
+
+			// show all clients
+			for (int i = 0; i < clientCount; i++) {
+				client *c = &clients[i];
+				printf("id: %d\n", c->id);
+				printf("\tname: %s\n", c->name);
+				printf("\tip: %s\n", Helper::iptos(c->dstIp));
+				printf("\tstatus: %s\n", c->status == 1 ? "online" : "offline");
+			}
+			continue;
+		}
+
+		if (Helper::compare_string(input, (char *)"conn show", 9)) { // 9 for size of "conn show"
+			// TODO: parse input string and take out id to print single client
+			// FOR NOW IT SHOULD NOT BE USED, ITS NOT WOKRING
+
+			char parsed[MAX_INPUT][MAX_INPUT];
+			
+			Terminal::parse(input, parsed);
+
+			// show client by id
+			int n = atoi(parsed[3]);
+
+			if (n > clientCount || n < 0) {
+				printf("Client id out of bound!\n");
+				continue;
+			}
+
+			client *c = &clients[n];
+			printf("id: %d\n", c->id);
+			printf("\tname: %s\n", c->name);
+			printf("\tip: %s\n", Helper::iptos(c->dstIp));
+			printf("\tstatus: %s\n", c->status == 1 ? "online" : "offline");
+
+			continue;
+		}
+
+		if (Helper::compare_string(input, (char *)"conn add")) {
+
+			if (clientCount == MAX_CLIENTS) {
+				printf("Max number of clients reached, cannot add more!\n");
+				continue;
+			}
+			Terminal::add_client(input, cli);
+			cli->srcIp = local;
+			clients[clientCount] = *cli;
+			clientCount++;
+			continue;
+		}
+
+		if (Helper::compare_string(input, (char *)"conn start ")) {
+			// TODO: parse it and obtain id
+
+			int n = atoi(input);
+
+			cli = &clients[n - 1];
+
+			if (n > clientCount || n < 0) {
+				printf("Client id out of bound!\n");
+				continue;
+			}
+
+			if (cli->status == 1) {
+				printf("Client is already online\n");
+				continue;
+			}
+
+			// start an algorithm to open a tunnel with remote host
+
+			Terminal::start_client(d, fp, cli);
+
+			continue;
+
+		}
+
+		if (Helper::compare_string(input, (char *)"conn listen ")) {
+			// TODO: SAME SHIT, PARSE IT
+
+			int n = atoi(input);
+
+			cli = &clients[n - 1];
+
+			if (n > clientCount || n < 0) {
+				printf("Client id out of bound!\n");
+				continue;
+			}
+
+			if (cli->status == 1) {
+				printf("Client is already online\n");
+				continue;
+			}
+
+			// start an algorithm to open a tunnel with remote host
+			//threads[n] = std::thread(Terminal::listen_client, d, fp, cli);
+
+			continue;
+		}
+
+		if (Helper::compare_string(input, (char *)"conn stop ")) {
+			//TODO: PARSE
+
+			int n = atoi(input);
+
+			cli = &clients[n - 1];
+
+			if (n > clientCount || n < 0) {
+				printf("Client id out of bound!\n");
+				continue;
+			}
+
+			if (cli->status == 0) {
+				printf("Client is already offline\n");
+				continue;
+			}
+
+
+			//threads[n].join();
+			// start an algorithm to close connection(clear record in router's NAT)
+			// or maybe the connection will be closed by program that's using the tunnel
+
+			continue;
+		}
+
+		if (Helper::compare_string(input, (char *)"")) {
+			continue;
+		}
+
+		printf("Unknown command. Type \"help\" to show available commands.\n");
+	}
+
+	#pragma endregion
+	
+
+/*
 	#pragma region terminal
 
 	//threads[0] = std::thread(Terminal::thread_manager, threads, manager, &clients); // manager
@@ -1485,7 +1591,9 @@ int main()
 				}
 
 				// start an algorithm to open a tunnel with remote host
-				threads[n] = std::thread(Terminal::start_client, d, fp, cli);
+				//threads[n] = std::thread(Terminal::start_client, d, fp, cli);
+
+				Terminal::start_client(d, fp, cli);
 
 				continue;
 
@@ -1558,9 +1666,9 @@ int main()
 	}
 
 	#pragma endregion
+	*/
 
-
-	Helper::joinThreads(threads);
+	//Helper::joinThreads(threads);
 
 	delete input;
 	delete cli;

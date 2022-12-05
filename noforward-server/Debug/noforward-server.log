@@ -1,5 +1,5 @@
 ﻿  main.cpp
-c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(898): warning C4477: „printf”: ciąg formatu „%d” wymaga argumentu typu „int”, ale argument 2 ze zmienną liczbą argumentów ma typ „std::thread::id”
-c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1032): warning C4474: „fprintf”: przekazano za dużo argumentów dla ciągu formatowania
-  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1032): note: symbole zastępcze i ich parametry oczekują 0 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 1
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(864): warning C4477: „printf”: ciąg formatu „%d” wymaga argumentu typu „int”, ale argument 2 ze zmienną liczbą argumentów ma typ „std::thread::id”
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(961): warning C4474: „fprintf”: przekazano za dużo argumentów dla ciągu formatowania
+  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(961): note: symbole zastępcze i ich parametry oczekują 0 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 1
   noforward-server.vcxproj -> C:\Users\olaf\Documents\noforward-server\Debug\noforward-server.exe
