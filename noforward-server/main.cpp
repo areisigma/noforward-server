@@ -546,7 +546,7 @@ namespace Helper {
 
 
 	// sends ARP to router to gather it's mac address
-	int find_router_mac(DWORD addr, u_char out[6]) {
+	int find_router_mac(DWORD addr, u_char out[6], bool verbose) {
 
 		DWORD rAddr = 0; // router address
 		//DWORD addr = ((struct sockaddr_in *)d->addresses->addr)->sin_addr.s_addr;
@@ -556,7 +556,7 @@ namespace Helper {
 		u_long macLen = 6;
 
 		memset(&dtAddr, '\0', sizeof(dtAddr));
-		memcpy(&dtAddr, iptos_r(addr, true), 3 * 4 + 3);
+		memcpy(&dtAddr, iptos_r(addr, true), 3 * 4 + 3); // IPTOS_R DOES NOT RETURN CORRECT ADDRESS!!!!!!!!
 
 		if (dtAddr == NULL) {
 
@@ -564,7 +564,8 @@ namespace Helper {
 			return 0;
 		}
 
-		printf("[*] Router IP: %s\n", dtAddr);
+		if(verbose)
+			printf("[*] Router IP: %s\n", dtAddr);
 
 		if (inet_pton(AF_INET, (PCSTR)dtAddr, rAddrStruct) != 1) {
 			printf("[!] Error while converting router address!\n");
@@ -583,7 +584,8 @@ namespace Helper {
 			return 0;
 		}
 
-		printf("[+] Router MAC: %x:%x:%x:%x:%x:%x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+		if(verbose)
+			printf("[+] Router MAC: %x:%x:%x:%x:%x:%x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
 		memcpy(out, mac, sizeof(mac));
 
@@ -594,25 +596,27 @@ namespace Helper {
 
 
 	// fills packet with mac addresses and moves offset by length of mac address
-	int fill_mac(u_char *packet, u_char mac[], const char *dest, int offset) {
+	int fill_mac(u_char *packet, u_char mac[], const char *dest, int offset, bool verbose) {
 
 		for (int i = 0; i < 6; i++) {
 			packet[i + offset] = mac[i];
 		}
 
-		printf("[*] %s MAC: %x:%x:%x:%x:%x:%x\n", dest, packet[0 + offset],
-			packet[1 + offset],
-			packet[2 + offset],
-			packet[3 + offset],
-			packet[4 + offset],
-			packet[5 + offset]);
+		if (verbose) {
+			printf("[*] %s MAC: %x:%x:%x:%x:%x:%x\n", dest, packet[0 + offset],
+				packet[1 + offset],
+				packet[2 + offset],
+				packet[3 + offset],
+				packet[4 + offset],
+				packet[5 + offset]);
+		}
 
 		return 1;
 	}
 
 
 	// fills packet with ip address
-	int fill_ip_addr(u_char *packet, DWORD ip, int offset) {
+	int fill_ip_addr(u_char *packet, DWORD ip, int offset, bool verbose) {
 
 		char dtAddr[15]; // dotted router ip address
 		in_addr *rAddrStruct = new in_addr;
@@ -634,7 +638,8 @@ namespace Helper {
 		packet[offset] = rAddrStruct->S_un.S_un_b.s_b4; // 4th octet
 		offset++;
 
-		printf("[+] %d.%d.%d.%d\n", packet[offset - 4], packet[offset - 3], packet[offset - 2], packet[offset - 1]);
+		if(verbose)
+			printf("[+] %d.%d.%d.%d\n", packet[offset - 4], packet[offset - 3], packet[offset - 2], packet[offset - 1]);
 
 		delete rAddrStruct;
 
@@ -689,7 +694,7 @@ namespace Helper {
 
 
 	// handles the ip header in packet
-	int fill_ip(u_char *packet, DWORD src, DWORD dst, int offset, int ipLenOffset, int ipChkSumOffset) {
+	int fill_ip(u_char *packet, DWORD src, DWORD dst, int offset, int ipLenOffset, int ipChkSumOffset, bool verbose) {
 
 		// Type 0x0800 (IPv4)
 		packet[offset] = 0x08;
@@ -737,14 +742,14 @@ namespace Helper {
 
 		// Spoof here
 		// Source IP
-		if (fill_ip_addr(packet, src, offset) == 0) { // client's service; sRemote->dwLocalAddr
+		if (fill_ip_addr(packet, src, offset, verbose) == 0) { // client's service; sRemote->dwLocalAddr
 			printf("[!] Error while filling source ip!\n");
 			return 0;
 		}
 		offset += 4;
 
 		// Destination IP
-		if (fill_ip_addr(packet, dst, offset) == 0) { // client's network; sRemote->dwRemoteAddr
+		if (fill_ip_addr(packet, dst, offset, verbose) == 0) { // client's network; sRemote->dwRemoteAddr
 			printf("[!] Error while filling destination ip!\n");
 			return 0;
 		}
@@ -769,7 +774,7 @@ namespace Helper {
 
 
 	// handles the tcp header in packet
-	int fill_tcp(u_char *packet, int offset, int src, int dst, int flag) {
+	int fill_tcp(u_char *packet, int offset, int src, int dst, int flag, bool verbose) {
 
 		// Source Port
 		if (fill_tcp_port(packet, src, offset) == 0) { // remote port of client's service connection
@@ -837,7 +842,8 @@ namespace Helper {
 
 		// Maybe this will be needed, but i dont think so, because of encapsulated packet
 		// Checksum
-		packet[offset] = 0x12; printf("[*] checksum: %d\n", offset);
+		packet[offset] = 0x12; 
+		if (verbose) { printf("[*] checksum: %d\n", offset); }
 		offset++;
 		packet[offset] = 0x34;
 		offset++;
@@ -852,7 +858,7 @@ namespace Helper {
 	}
 
 
-	// shows running threads
+	/*// shows running threads
 	int showThreads(std::thread *threads) {
 		for (int i = 0; i < MAX_THREADS; i++) {
 			std::thread::id id = threads[i].get_id();
@@ -885,14 +891,14 @@ namespace Helper {
 		printf("\n");
 
 		return 1;
-	}
+	}*/
 
 }
 
 namespace Transmitter {
 
 	// puts mac addresses, ips, tcp things into packet
-	int forge_packet_header(pcap_if_t *d, u_char packet[PACKET_SIZE], ipp ip, tcpp tcp, int flag) {
+	int forge_packet_header(pcap_if_t *d, u_char packet[PACKET_SIZE], ipp ip, tcpp tcp, int flag, bool verbose) {
 
 		int offset = 0; // local packet offset
 
@@ -922,32 +928,32 @@ namespace Transmitter {
 
 		// find local mac and put it in packet
 		Helper::find_local_mac(d, srcMac);
-		Helper::fill_mac(packet, srcMac, "Source", offset); offset += 6;
+		Helper::fill_mac(packet, srcMac, "Source", offset, verbose); offset += 6;
 
 		// same thing with router's mac
-		if (Helper::find_router_mac(srcIP, dstMac) == 0) {
+		if (Helper::find_router_mac(srcIP, dstMac, verbose) == 0) {
 			printf("[!] Error while finding router mac!\n");
 			return 0;
 		}
-		Helper::fill_mac(packet, dstMac, "Destination", offset); offset += 6;
+		Helper::fill_mac(packet, dstMac, "Destination", offset, verbose); offset += 6;
 
 		// I actually type of ethernet frame (IPv4) put into fill_ip(), but that does not matter so much
 		// IP
-		offset = Helper::fill_ip(packet, srcIP, dstIP, offset, ipLenOffset, ipChkSumOffset);
+		offset = Helper::fill_ip(packet, srcIP, dstIP, offset, ipLenOffset, ipChkSumOffset, verbose);
 		if (offset == 0) {
 			printf("[!] Error in ip!\n");
 			return 0;
 		}
 
 		// TCP
-		offset = Helper::fill_tcp(packet, offset, srcPort, dstPort, flag);
+		offset = Helper::fill_tcp(packet, offset, srcPort, dstPort, flag, verbose);
 		if (offset == 0) {
 			printf("[!] Error in tcp!\n");
 			return 0;
 		}
 
-
-		printf("[*] Header size: %d\n", offset);
+		if(verbose)
+			printf("[*] Header size: %d\n", offset);
 
 		return offset;
 	}
@@ -961,6 +967,8 @@ namespace Transmitter {
 			fprintf(stderr, "\nError sending the packet: \n", pcap_geterr(fp));
 			return 0;
 		}
+
+		printf("Packet sent\n");
 
 		return 1;
 	}
@@ -992,6 +1000,7 @@ namespace Receiver {
 
 		return ret;
 	}
+
 
 	// loop; listening a packet
 	int listen_packet(pcap_t *handle, struct service *sLocal) {
@@ -1061,11 +1070,13 @@ namespace Terminal {
 		printf("\tconn add - adds new connection to\n");
 		printf("\tconn show all - prints all connections\n");
 		printf("\tconn show <id> - prints connection by id\n");
-		printf("\tconn start <id> - starts remote connection\n");
-		printf("\tconn stop <id> - stops remote connection\n");
+		printf("\tconn remote <id> - starts remote connection. Help remote host to open connection\n");
+		printf("\tconn local <id> - starts local connection. Wait for help\n");
+		printf("\tconn stop <id> - stops connection\n");
 		printf("\texit - exits program\n");
 		printf("\thelp - shows commands\n");
-		printf("\tthreads show - shows active threads\n");
+		printf("\tverbose - changes verbose of forging packet(for now only forge packet)\n");
+		//printf("\tthreads show - shows active threads\n");
 
 		printf("\n");
 		return 1;
@@ -1086,24 +1097,28 @@ namespace Terminal {
 		return 1;
 	}
 
-	int parse(char input[MAX_INPUT], char parsed[MAX_INPUT][MAX_INPUT]) {
+	int parse(char input[MAX_INPUT], char output[MAX_INPUT], int which) {
 
-		int last_space = 0;
-		int words = 0; // words in parsed
-		int word_length = 0;
+		char *context = nullptr;
 
-		for (int i = 0; i < MAX_INPUT; i++) { // loop for whole input
+		// Use the strtok() function to extract the first token from the array
+		char* token = strtok_s(input, " ", &context);
 
+		int i = 0;
 
-			if (input[i] == ' ' || input[i] == '\0') {
-				memcpy(parsed[words], input + last_space, i);
-				last_space = i;
-				words++;
-			}
+		// Continue extracting tokens from the array until strtok() returns NULL
+		while (token != NULL || i >= which) {
+			// Print the current token
+			//printf(": %s\n", token);
 
-			if (input[i] == '\0')
-				break;
+			output = token;
+			which++;
+
+			// Extract the next token from the array
+			token = strtok_s(NULL, " ", &context);
 		}
+
+		//printf("; %s\n", output);
 
 		return 1;
 	}
@@ -1148,7 +1163,7 @@ namespace Terminal {
 		return 1;
 	}
 
-	int start_client(pcap_if_t *d, pcap_t* fp, client *cli) {
+	int start_client(pcap_if_t *d, pcap_t* fp, client *cli, bool verbose) {
 
 
 		u_char packet[PACKET_SIZE];
@@ -1167,15 +1182,19 @@ namespace Terminal {
 		tcp.seq = 0;
 
 		flag = 2; // SYN
-		if ((szHeader = Transmitter::forge_packet_header(d, packet, ip, tcp, flag)) == 0) {
+		if ((szHeader = Transmitter::forge_packet_header(d, packet, ip, tcp, flag, verbose)) == 0) {
 			printf("[!] Error while forging packet!\n");
+			return 0;
+		}
+
+		if (!Transmitter::send(fp, packet, szHeader)) {
 			return 0;
 		}
 
 		Sleep(2000);
 
 		flag = 18; // SYN/ACK
-		if ((szHeader = Transmitter::forge_packet_header(d, packet, ip, tcp, flag)) == 0) {
+		if ((szHeader = Transmitter::forge_packet_header(d, packet, ip, tcp, flag, verbose)) == 0) {
 			printf("[!] Error while forging packet!\n");
 			return 0;
 		}
@@ -1189,7 +1208,7 @@ namespace Terminal {
 		return 1;
 	}
 
-	int listen_client(pcap_if_t *d, pcap_t* fp, client *cli) {
+	int listen_client(pcap_if_t *d, pcap_t* fp, client *cli, bool verbose) {
 
 		u_char packet[PACKET_SIZE];
 		int szHeader = 0;
@@ -1207,7 +1226,7 @@ namespace Terminal {
 		tcp.seq = 0;
 
 		flag = 16; // ACK
-		if ((szHeader = Transmitter::forge_packet_header(d, packet, ip, tcp, flag)) == 0) {
+		if ((szHeader = Transmitter::forge_packet_header(d, packet, ip, tcp, flag, verbose)) == 0) {
 			printf("[!] Error while forging packet!\n");
 			return 0;
 		}
@@ -1247,9 +1266,10 @@ int main()
 	client *cli = new client;
 	client clients[MAX_CLIENTS];
 	int clientCount = 0;
+	bool verbose = false;
 
 	// threads
-	std::thread threads[MAX_THREADS];
+	//std::thread threads[MAX_THREADS];
 
 
 	SetConsoleTitleW(L"NoForward [0.0.1]");
@@ -1340,8 +1360,24 @@ int main()
 			continue;
 		}
 
-		// i have to put conn show all/<id> into one if statement and parse it,
-		// otherwise conn show <id> is aborted due to compare_string() failes with comparing shorter string with longer (as i thought it would not be a problem)
+		if (Helper::compare_string(input, (char *)"verbose")) {
+			verbose = !verbose;
+			printf("verbose: %d\n", verbose);
+			continue;
+		}
+
+		if (Helper::compare_string(input, (char *)"conn add")) {
+
+			if (clientCount == MAX_CLIENTS) {
+				printf("Max number of clients reached, cannot add more!\n");
+				continue;
+			}
+			Terminal::add_client(input, cli);
+			cli->srcIp = local;
+			clients[clientCount] = *cli;
+			clientCount++;
+			continue;
+		}
 
 		if (Helper::compare_string(input, (char *)"conn show all")) {
 
@@ -1361,16 +1397,14 @@ int main()
 			continue;
 		}
 
-		if (Helper::compare_string(input, (char *)"conn show", 9)) { // 9 for size of "conn show"
-			// TODO: parse input string and take out id to print single client
-			// FOR NOW IT SHOULD NOT BE USED, ITS NOT WOKRING
+		if (Helper::compare_string(input, (char *)"conn show", 5 + 4)) { // 9 for size of "conn show"
 
-			char parsed[MAX_INPUT][MAX_INPUT];
-			
-			Terminal::parse(input, parsed);
+			// parsing
+			char parsed[MAX_INPUT]; // output of parse method
+			Terminal::parse(input, parsed, 3);
 
 			// show client by id
-			int n = atoi(parsed[3]);
+			int n = atoi(parsed);
 
 			if (n > clientCount || n < 0) {
 				printf("Client id out of bound!\n");
@@ -1386,23 +1420,12 @@ int main()
 			continue;
 		}
 
-		if (Helper::compare_string(input, (char *)"conn add")) {
+		if (Helper::compare_string(input, (char *)"conn remote", 5 + 6)) {
 
-			if (clientCount == MAX_CLIENTS) {
-				printf("Max number of clients reached, cannot add more!\n");
-				continue;
-			}
-			Terminal::add_client(input, cli);
-			cli->srcIp = local;
-			clients[clientCount] = *cli;
-			clientCount++;
-			continue;
-		}
+			char parsed[MAX_INPUT];
+			Terminal::parse(input, parsed, 3);
 
-		if (Helper::compare_string(input, (char *)"conn start ")) {
-			// TODO: parse it and obtain id
-
-			int n = atoi(input);
+			int n = atoi(parsed);
 
 			cli = &clients[n - 1];
 
@@ -1418,16 +1441,18 @@ int main()
 
 			// start an algorithm to open a tunnel with remote host
 
-			Terminal::start_client(d, fp, cli);
+			Terminal::start_client(d, fp, cli, verbose);
 
 			continue;
 
 		}
 
-		if (Helper::compare_string(input, (char *)"conn listen ")) {
-			// TODO: SAME SHIT, PARSE IT
+		if (Helper::compare_string(input, (char *)"conn local", 5 + 5)) {
 
-			int n = atoi(input);
+			char parsed[MAX_INPUT];
+			Terminal::parse(input, parsed, 3);
+
+			int n = atoi(parsed);
 
 			cli = &clients[n - 1];
 
@@ -1447,10 +1472,12 @@ int main()
 			continue;
 		}
 
-		if (Helper::compare_string(input, (char *)"conn stop ")) {
-			//TODO: PARSE
+		if (Helper::compare_string(input, (char *)"conn close", 5 + 5)) {
 
-			int n = atoi(input);
+			char parsed[MAX_INPUT];
+			Terminal::parse(input, parsed, 3);
+
+			int n = atoi(parsed);
 
 			cli = &clients[n - 1];
 
