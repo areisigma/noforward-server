@@ -23,6 +23,10 @@
 #define MAX_INPUT		32
 #define MAX_THREADS		32
 
+#define SYN 2
+#define ACK 16
+#define SYNACK 18
+
 typedef struct eth_header {
 	u_char srcMac[6];
 	u_char dstMac[6];
@@ -1144,11 +1148,11 @@ namespace Terminal {
 		scanf_s("%s", buf, 3 * 4 + 3 + 1);
 		inet_pton(AF_INET, buf, &cli->dstIp);
 
-		/*printf("\tLocal Port > ");
+		printf("\tLocal Port > ");
 		scanf_s("%d", &cli->srcPort, 5);
 
 		printf("\tClient's Port > ");
-		scanf_s("%d", &cli->dstPort, 5);*/
+		scanf_s("%d", &cli->dstPort, 5);
 
 		return 1;
 	}
@@ -1163,8 +1167,15 @@ namespace Terminal {
 		return 1;
 	}
 
-	int start_client(pcap_if_t *d, pcap_t* fp, client *cli, bool verbose) {
+	// SYN -> ACK
+	int start_local_client(pcap_if_t *d, pcap_t* fp, client *cli, bool verbose) {
 
+		/*
+		Opening local NAT depends on tricking local router into thinking,
+		that you a computer just opened a new session.
+		Thus local router must see coming from LAN SYN -> ACK (1st and 3rd step);
+		2nd step is SYN/ACK, this should be sent by remote friend.
+		*/
 
 		u_char packet[PACKET_SIZE];
 		int szHeader = 0;
@@ -1174,14 +1185,16 @@ namespace Terminal {
 		ipp ip;
 		tcpp tcp;
 
-		ip.src = cli->srcIp;//((struct sockaddr_in *)d->addresses->addr)->sin_addr.s_addr;
+		ip.src = cli->srcIp;
 		ip.dst = cli->dstIp;
-		tcp.src = 42069;
-		tcp.dst = 42069;
+		//tcp.src = 42069;
+		//tcp.dst = 42069;
+		tcp.src = cli->srcPort;
+		tcp.dst = cli->dstPort;
 		tcp.ack = 0;
 		tcp.seq = 0;
 
-		flag = 2; // SYN
+		flag = SYN; // SYN
 		if ((szHeader = Transmitter::forge_packet_header(d, packet, ip, tcp, flag, verbose)) == 0) {
 			printf("[!] Error while forging packet!\n");
 			return 0;
@@ -1193,7 +1206,7 @@ namespace Terminal {
 
 		Sleep(2000);
 
-		flag = 18; // SYN/ACK
+		flag = ACK; // ACK
 		if ((szHeader = Transmitter::forge_packet_header(d, packet, ip, tcp, flag, verbose)) == 0) {
 			printf("[!] Error while forging packet!\n");
 			return 0;
@@ -1208,7 +1221,8 @@ namespace Terminal {
 		return 1;
 	}
 
-	int listen_client(pcap_if_t *d, pcap_t* fp, client *cli, bool verbose) {
+	// SYN/ACK
+	int start_remote_client(pcap_if_t *d, pcap_t* fp, client *cli, bool verbose) {
 
 		u_char packet[PACKET_SIZE];
 		int szHeader = 0;
@@ -1218,14 +1232,14 @@ namespace Terminal {
 		ipp ip;
 		tcpp tcp;
 
-		ip.src = cli->srcIp;//((struct sockaddr_in *)d->addresses->addr)->sin_addr.s_addr;
+		ip.src = cli->srcIp;
 		ip.dst = cli->dstIp;
-		tcp.src = 42069;
-		tcp.dst = 42069;
+		tcp.src = cli->srcPort;
+		tcp.dst = cli->dstPort;
 		tcp.ack = 0;
 		tcp.seq = 0;
 
-		flag = 16; // ACK
+		flag = SYNACK; // SYN/ACK
 		if ((szHeader = Transmitter::forge_packet_header(d, packet, ip, tcp, flag, verbose)) == 0) {
 			printf("[!] Error while forging packet!\n");
 			return 0;
@@ -1234,6 +1248,8 @@ namespace Terminal {
 		if (!Transmitter::send(fp, packet, szHeader)) {
 			return 0;
 		}
+
+		cli->status = 1;
 
 		return 1;
 	}
@@ -1441,7 +1457,7 @@ int main()
 
 			// start an algorithm to open a tunnel with remote host
 
-			Terminal::start_client(d, fp, cli, verbose);
+			Terminal::start_remote_client(d, fp, cli, verbose);
 
 			continue;
 
@@ -1467,12 +1483,12 @@ int main()
 			}
 
 			// start an algorithm to open a tunnel with remote host
-			//threads[n] = std::thread(Terminal::listen_client, d, fp, cli);
+			Terminal::start_local_client(d, fp, cli, verbose);
 
 			continue;
 		}
 
-		if (Helper::compare_string(input, (char *)"conn close", 5 + 5)) {
+		if (Helper::compare_string(input, (char *)"conn stop", 5 + 4)) {
 
 			char parsed[MAX_INPUT];
 			Terminal::parse(input, parsed, 3);
