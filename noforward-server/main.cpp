@@ -1217,7 +1217,7 @@ namespace Terminal {
 			return 0;
 		}
 
-		cli->status = 1;
+		//cli->status = 1;
 
 		return 1;
 	}
@@ -1250,7 +1250,7 @@ namespace Terminal {
 			return 0;
 		}
 
-		cli->status = 1;
+		//cli->status = 1;
 
 		return 1;
 	}
