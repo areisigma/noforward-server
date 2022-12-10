@@ -560,7 +560,7 @@ namespace Helper {
 		u_long macLen = 6;
 
 		memset(&dtAddr, '\0', sizeof(dtAddr));
-		memcpy(&dtAddr, iptos_r(addr, true), 3 * 4 + 3); // IPTOS_R DOES NOT RETURN CORRECT ADDRESS!!!!!!!!
+		memcpy(&dtAddr, iptos_r(addr, true), 3 * 4 + 3);
 
 		if (dtAddr == NULL) {
 
@@ -906,7 +906,7 @@ namespace Transmitter {
 
 		int offset = 0; // local packet offset
 
-		DWORD srcIP = ip.src;
+		DWORD srcIP = ip.src; // i'm passing wrong source address i think
 		DWORD dstIP = ip.dst;
 		int srcPort = tcp.src;
 		int dstPort = tcp.dst;
@@ -1101,9 +1101,10 @@ namespace Terminal {
 		return 1;
 	}
 
-	int parse(char input[MAX_INPUT], char output[MAX_INPUT], int which) {
+	char* parse(char input[MAX_INPUT], int which) {
 
 		char *context = nullptr;
+		char *output = nullptr;
 
 		// Use the strtok() function to extract the first token from the array
 		char* token = strtok_s(input, " ", &context);
@@ -1124,7 +1125,7 @@ namespace Terminal {
 
 		//printf("; %s\n", output);
 
-		return 1;
+		return output;
 	}
 
 	int add_client(char *input, client *cli) {
@@ -1413,11 +1414,14 @@ int main()
 			continue;
 		}
 
-		if (Helper::compare_string(input, (char *)"conn show", 5 + 4)) { // 9 for size of "conn show"
+		if (Helper::compare_string(input, (char *)"conn show ", 5 + 5)) { // 9 for size of "conn show"
 
 			// parsing
-			char parsed[MAX_INPUT]; // output of parse method
-			Terminal::parse(input, parsed, 3);
+			/*char parsed[MAX_INPUT]; // output of parse method
+			Terminal::parse(input, parsed, 3);*/
+
+			char *parsed;
+			parsed = Terminal::parse(input, 3);
 
 			// show client by id
 			int n = atoi(parsed);
@@ -1436,10 +1440,11 @@ int main()
 			continue;
 		}
 
-		if (Helper::compare_string(input, (char *)"conn remote", 5 + 6)) {
+		if (Helper::compare_string(input, (char *)"conn remote ", 5 + 7)) {
 
-			char parsed[MAX_INPUT];
-			Terminal::parse(input, parsed, 3);
+
+			char *parsed;
+			parsed = Terminal::parse(input, 3);
 
 			int n = atoi(parsed);
 
@@ -1463,14 +1468,14 @@ int main()
 
 		}
 
-		if (Helper::compare_string(input, (char *)"conn local", 5 + 5)) {
+		if (Helper::compare_string(input, (char *)"conn local ", 5 + 6)) {
 
-			char parsed[MAX_INPUT];
-			Terminal::parse(input, parsed, 3);
+			char *parsed;
+			parsed = Terminal::parse(input, 3);
 
 			int n = atoi(parsed);
 
-			cli = &clients[n - 1];
+			*cli = clients[n - 1];
 
 			if (n > clientCount || n < 0) {
 				printf("Client id out of bound!\n");
@@ -1488,10 +1493,11 @@ int main()
 			continue;
 		}
 
-		if (Helper::compare_string(input, (char *)"conn stop", 5 + 4)) {
+		if (Helper::compare_string(input, (char *)"conn stop ", 5 + 5)) {
 
-			char parsed[MAX_INPUT];
-			Terminal::parse(input, parsed, 3);
+
+			char *parsed;
+			parsed = Terminal::parse(input, 3);
 
 			int n = atoi(parsed);
 

@@ -1,12 +1,12 @@
 ﻿  main.cpp
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(971): warning C4474: „fprintf”: przekazano za dużo argumentów dla ciągu formatowania
-  c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(971): note: symbole zastępcze i ich parametry oczekują 0 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 1
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(1152): warning C4474: „scanf_s”: przekazano za dużo argumentów dla ciągu formatowania
-  c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(1152): note: symbole zastępcze i ich parametry oczekują 1 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 2
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(1155): warning C4474: „scanf_s”: przekazano za dużo argumentów dla ciągu formatowania
-  c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(1155): note: symbole zastępcze i ich parametry oczekują 1 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 2
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(1192): warning C4244: "=": konwersja z "DWORD" do "u_short", możliwa utrata danych
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(1193): warning C4244: "=": konwersja z "DWORD" do "u_short", możliwa utrata danych
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(1237): warning C4244: "=": konwersja z "DWORD" do "u_short", możliwa utrata danych
-c:\users\olaf\desktop\visual projects\noforward-server\noforward-server\main.cpp(1238): warning C4244: "=": konwersja z "DWORD" do "u_short", możliwa utrata danych
-  noforward-server.vcxproj -> C:\Users\olaf\Desktop\Visual Projects\noforward-server\Debug\noforward-server.exe
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(971): warning C4474: „fprintf”: przekazano za dużo argumentów dla ciągu formatowania
+  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(971): note: symbole zastępcze i ich parametry oczekują 0 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 1
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1153): warning C4474: „scanf_s”: przekazano za dużo argumentów dla ciągu formatowania
+  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1153): note: symbole zastępcze i ich parametry oczekują 1 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 2
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1156): warning C4474: „scanf_s”: przekazano za dużo argumentów dla ciągu formatowania
+  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1156): note: symbole zastępcze i ich parametry oczekują 1 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 2
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1193): warning C4244: "=": konwersja z "DWORD" do "u_short", możliwa utrata danych
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1194): warning C4244: "=": konwersja z "DWORD" do "u_short", możliwa utrata danych
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1238): warning C4244: "=": konwersja z "DWORD" do "u_short", możliwa utrata danych
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1239): warning C4244: "=": konwersja z "DWORD" do "u_short", możliwa utrata danych
+  noforward-server.vcxproj -> C:\Users\olaf\Documents\noforward-server\Debug\noforward-server.exe
