@@ -1,1 +1,17 @@
-﻿  noforward-server.vcxproj -> C:\Users\olaf\Documents\noforward-server\Release\noforward-server.exe
+﻿  main.cpp
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(971): warning C4474: „fprintf”: przekazano za dużo argumentów dla ciągu formatowania
+  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(971): note: symbole zastępcze i ich parametry oczekują 0 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 1
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1154): warning C4474: „scanf_s”: przekazano za dużo argumentów dla ciągu formatowania
+  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1154): note: symbole zastępcze i ich parametry oczekują 1 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 2
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1157): warning C4474: „scanf_s”: przekazano za dużo argumentów dla ciągu formatowania
+  c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1157): note: symbole zastępcze i ich parametry oczekują 1 argumentów ze zmienną liczbą argumentów, ale podano następującą liczbę zmiennych argumentów: 2
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1194): warning C4244: "=": konwersja z "DWORD" do "u_short", możliwa utrata danych
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1195): warning C4244: "=": konwersja z "DWORD" do "u_short", możliwa utrata danych
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1241): warning C4244: "=": konwersja z "DWORD" do "u_short", możliwa utrata danych
+c:\users\olaf\documents\noforward-server\noforward-server\main.cpp(1242): warning C4244: "=": konwersja z "DWORD" do "u_short", możliwa utrata danych
+  Trwa generowanie kodu
+  3 of 35 functions ( 8.6%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
+  Zakończono generowanie kodu
+  noforward-server.vcxproj -> C:\Users\olaf\Documents\noforward-server\Release\noforward-server.exe

@@ -1071,6 +1071,7 @@ namespace Terminal {
 		printf("");
 
 		printf("Available commands\n");
+		printf("\tcls - clear screen\n");
 		printf("\tconn add - adds new connection to\n");
 		printf("\tconn show all - prints all connections\n");
 		printf("\tconn show <id> - prints connection by id\n");
@@ -1204,6 +1205,8 @@ namespace Terminal {
 		if (!Transmitter::send(fp, packet, szHeader)) {
 			return 0;
 		}
+
+		return 1;
 
 		Sleep(2000);
 
@@ -1518,6 +1521,11 @@ int main()
 			// start an algorithm to close connection(clear record in router's NAT)
 			// or maybe the connection will be closed by program that's using the tunnel
 
+			continue;
+		}
+
+		if (Helper::compare_string(input, (char *)"cls")) {
+			system("cls");
 			continue;
 		}
 
