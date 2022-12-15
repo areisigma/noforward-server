@@ -1194,7 +1194,7 @@ namespace Terminal {
 		tcp.src = cli->srcPort;
 		tcp.dst = cli->dstPort;
 		tcp.ack = 0;
-		tcp.seq = 0;
+		tcp.seq = 100;
 
 		flag = SYN; // SYN
 		if ((szHeader = Transmitter::forge_packet_header(d, packet, ip, tcp, flag, verbose)) == 0) {
@@ -1240,8 +1240,8 @@ namespace Terminal {
 		ip.dst = cli->dstIp;
 		tcp.src = cli->srcPort;
 		tcp.dst = cli->dstPort;
-		tcp.ack = 0;
-		tcp.seq = 0;
+		tcp.ack = 101;
+		tcp.seq = 200;
 
 		flag = SYNACK; // SYN/ACK
 		if ((szHeader = Transmitter::forge_packet_header(d, packet, ip, tcp, flag, verbose)) == 0) {
