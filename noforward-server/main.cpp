@@ -713,9 +713,9 @@ namespace Helper {
 		offset++;
 
 		// 2 bytes of total length, fill later
-		packet[offset] = 0x03; ipLenOffset = offset;
+		packet[offset] = 0x00; ipLenOffset = offset;
 		offset++;
-		packet[offset] = 0xf2;
+		packet[offset] = 0x28;
 		offset++;
 
 		// IP identifier
@@ -778,7 +778,7 @@ namespace Helper {
 
 
 	// handles the tcp header in packet
-	int fill_tcp(u_char *packet, int offset, int src, int dst, int flag, bool verbose) {
+	int fill_tcp(u_char *packet, int offset, int src, int dst, int flag, u_int seq, u_int ack, bool verbose) {
 
 		// Source Port
 		if (fill_tcp_port(packet, src, offset) == 0) { // remote port of client's service connection
@@ -794,31 +794,33 @@ namespace Helper {
 		}
 		offset += 2;
 
-		/*
-		I don't have to bother about
-		seq and ack numbers, because
-		I will encapsulate packet,
-		that does this for me.
-		*/
+		u_int netByte = htonl(seq);
+
 		// Sequence number
-		packet[offset] = 0x10;
+		memcpy(packet + offset, &netByte, 4);
+		offset += 4;
+		/*packet[offset] = 0x10;
 		offset++;
 		packet[offset] = 0x00;
 		offset++;
 		packet[offset] = 0x00;
 		offset++;
 		packet[offset] = 0x01;
-		offset++;
+		offset++;*/
+
+		netByte = htonl(ack);
 
 		// Acknowledge number
-		packet[offset] = 0x10;
+		memcpy(packet + offset, &netByte, 4);
+		offset += 4;
+		/*packet[offset] = 0x10;
 		offset++;
 		packet[offset] = 0x00;
 		offset++;
 		packet[offset] = 0x00;
 		offset++;
 		packet[offset] = 0x01;
-		offset++;
+		offset++;*/
 
 		// Data offset and reserved bits; it's mostly 0x50 and sometimes 0x80
 		packet[offset] = 0x50;
@@ -906,12 +908,12 @@ namespace Transmitter {
 
 		int offset = 0; // local packet offset
 
-		DWORD srcIP = ip.src; // i'm passing wrong source address i think
+		DWORD srcIP = ip.src;
 		DWORD dstIP = ip.dst;
 		int srcPort = tcp.src;
 		int dstPort = tcp.dst;
-		u_int ack = tcp.ack;
 		u_int seq = tcp.seq;
+		u_int ack = tcp.ack;
 
 
 		// MAC variables
@@ -950,7 +952,7 @@ namespace Transmitter {
 		}
 
 		// TCP
-		offset = Helper::fill_tcp(packet, offset, srcPort, dstPort, flag, verbose);
+		offset = Helper::fill_tcp(packet, offset, srcPort, dstPort, flag, seq, ack, verbose);
 		if (offset == 0) {
 			printf("[!] Error in tcp!\n");
 			return 0;
